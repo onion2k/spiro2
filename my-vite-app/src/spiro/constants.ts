@@ -1,0 +1,90 @@
+import type { EquationExample, LayerConfig, PaletteId, Preset } from './types'
+
+export const PALETTES: Record<PaletteId, number[]> = {
+  neon: [320, 290, 250, 200, 170, 120],
+  sunset: [8, 18, 30, 42, 56, 70],
+  ocean: [185, 198, 210, 224, 236, 248],
+  forest: [68, 92, 116, 132, 150, 168],
+  candy: [345, 320, 292, 265, 230, 200],
+}
+
+export const PRESETS: Preset[] = [
+  { id: 'classic-bloom', name: 'Classic Bloom', exprX: '(R - r) * cos(t + 0.25 * sin(u)) + d * cos(((R - r) / r) * t + 0.3 * cos(u))', exprY: '(R - r) * sin(t + 0.25 * sin(u)) - d * sin(((R - r) / r) * t + 0.3 * cos(u))', R: 8, r: 3, d: 6, speed: 1.8, uSpeed: 0.45, lineLifetime: 8, drawMode: 'lines', pointSize: 2.4 },
+  { id: 'lotus-wheel', name: 'Lotus Wheel', exprX: '(R - r) * cos(t) + d * cos(((R - r) / r) * t)', exprY: '(R - r) * sin(t) - d * sin(((R - r) / r) * t)', R: 9.4, r: 4.2, d: 7.2, speed: 1.3, lineLifetime: 10, drawMode: 'lines', pointSize: 2.2 },
+  { id: 'neon-knot', name: 'Neon Knot', exprX: '(R - r) * cos(t) + d * cos(((R - r) / r) * t)', exprY: '(R - r) * sin(t) - d * sin(((R - r) / r) * t)', R: 10, r: 2.6, d: 8.4, speed: 2.2, lineLifetime: 7, drawMode: 'lines-points', pointSize: 1.6 },
+  { id: 'orbital-petal', name: 'Orbital Petal', exprX: '(R + r) * cos(t) - d * cos(((R + r) / r) * t)', exprY: '(R + r) * sin(t) - d * sin(((R + r) / r) * t)', R: 4.6, r: 1.8, d: 4.2, speed: 2.5, lineLifetime: 6, drawMode: 'lines', pointSize: 1.8 },
+  { id: 'tangled-star', name: 'Tangled Star', exprX: '(R - r) * cos(t) + d * cos(((R - r) / r) * t)', exprY: '(R - r) * sin(t) + d * sin(((R - r) / r) * t)', R: 11, r: 3.7, d: 7, speed: 2.1, lineLifetime: 9, drawMode: 'lines', pointSize: 2 },
+  { id: 'daisy-chain', name: 'Daisy Chain', exprX: '(R - r) * cos(t) + (d + 0.6 * sin(t * 0.5)) * cos(((R - r) / r) * t)', exprY: '(R - r) * sin(t) - (d + 0.6 * sin(t * 0.5)) * sin(((R - r) / r) * t)', R: 8.8, r: 3.2, d: 5.4, speed: 1.7, lineLifetime: 11, drawMode: 'lines', pointSize: 2.2 },
+  { id: 'firework-sparks', name: 'Firework Sparks', exprX: '(R - r) * cos(t) + d * cos(((R - r) / r) * t)', exprY: '(R - r) * sin(t) - d * sin(((R - r) / r) * t)', R: 7.2, r: 1.9, d: 6.5, speed: 3.1, lineLifetime: 4.2, drawMode: 'points', pointSize: 2.8 },
+  { id: 'planet-glyph', name: 'Planet Glyph', exprX: '(R + r) * cos(t) - d * cos(((R + r) / r) * t)', exprY: '(R + r) * sin(t) - d * sin(((R + r) / r) * t)', R: 5.2, r: 2.1, d: 6.6, speed: 1.4, lineLifetime: 12, drawMode: 'lines-points', pointSize: 1.4 },
+  { id: 'helix-rose', name: 'Helix Rose', exprX: '(R - r) * cos(t) + d * cos(((R - r) / r) * t + sin(u))', exprY: '(R - r) * sin(t) - d * sin(((R - r) / r) * t + sin(u))', R: 10.2, r: 4.4, d: 7.6, speed: 1.1, uSpeed: 0.6, lineLifetime: 13, drawMode: 'lines', pointSize: 2.3 },
+  { id: 'atomic-lace', name: 'Atomic Lace', exprX: '(R - r) * cos(t) + d * cos(((R - r) / r) * t)', exprY: '(R - r) * sin(t) - d * sin(((R - r) / r) * t)', R: 12, r: 5.1, d: 8.3, speed: 0.95, lineLifetime: 14, drawMode: 'lines', pointSize: 2 },
+  { id: 'candy-swirl', name: 'Candy Swirl', exprX: '(R + r) * cos(t) - d * cos(((R + r) / r) * t)', exprY: '(R + r) * sin(t) - d * sin(((R + r) / r) * t)', R: 4.4, r: 1.4, d: 3.6, speed: 2.7, lineLifetime: 6.5, drawMode: 'lines-points', pointSize: 1.9 },
+  { id: 'wobble-loop', name: 'Wobble Loop', exprX: '(R - r) * cos(t) + (d + 1.1 * cos(t * 0.7)) * cos(((R - r) / r) * t)', exprY: '(R - r) * sin(t) - (d + 1.1 * cos(t * 0.7)) * sin(((R - r) / r) * t)', R: 9.8, r: 3.4, d: 6.2, speed: 1.6, lineLifetime: 9.5, drawMode: 'lines-points', pointSize: 1.3 },
+  { id: 'radar-scan', name: 'Radar Scan', exprX: '(R - r) * cos(t) + d * cos(((R - r) / r) * t)', exprY: '(R - r) * sin(t) - d * sin(((R - r) / r) * t)', R: 6.8, r: 2.2, d: 5.8, speed: 2.9, lineLifetime: 3.5, drawMode: 'points', pointSize: 2.1 },
+  { id: 'glass-petals', name: 'Glass Petals', exprX: '(R + r) * cos(t) - d * cos(((R + r) / r) * t)', exprY: '(R + r) * sin(t) - d * sin(((R + r) / r) * t)', R: 5.6, r: 2.5, d: 2.8, speed: 1.9, lineLifetime: 10.5, drawMode: 'lines', pointSize: 1.5 },
+  { id: 'triad-bloom', name: 'Triad Bloom', exprX: '(R - r) * cos(t) + d * cos(3 * ((R - r) / r) * t)', exprY: '(R - r) * sin(t) - d * sin(3 * ((R - r) / r) * t)', R: 8.4, r: 3.1, d: 4.7, speed: 1.7, lineLifetime: 8.8, drawMode: 'lines-points', pointSize: 1.7 },
+  { id: 'sunburst', name: 'Sunburst', exprX: '(R - r) * cos(t) + d * cos(((R - r) / r) * t)', exprY: '(R - r) * sin(t) - d * sin(((R - r) / r) * t)', R: 11.4, r: 1.7, d: 9.2, speed: 3.3, lineLifetime: 4.8, drawMode: 'points', pointSize: 3.3 },
+  { id: 'moon-thread', name: 'Moon Thread', exprX: '(R + r) * cos(t) - d * cos(((R + r) / r) * t)', exprY: '(R + r) * sin(t) - d * sin(((R + r) / r) * t)', R: 3.9, r: 1.2, d: 5.1, speed: 2.2, lineLifetime: 7.5, drawMode: 'lines', pointSize: 1.9 },
+  { id: 'echo-ring', name: 'Echo Ring', exprX: '(R - r) * cos(t) + (d * (0.75 + 0.25 * sin(t * 0.25))) * cos(((R - r) / r) * t)', exprY: '(R - r) * sin(t) - (d * (0.75 + 0.25 * sin(t * 0.25))) * sin(((R - r) / r) * t)', R: 9.1, r: 2.9, d: 6.9, speed: 1.5, lineLifetime: 11.2, drawMode: 'lines', pointSize: 2.1 },
+  { id: 'threaded-comet', name: 'Threaded Comet', exprX: '(R - r) * cos(t) + d * cos(((R - r) / r) * t)', exprY: '(R - r) * sin(t) - d * sin(((R - r) / r) * t)', R: 7.6, r: 2.4, d: 4.4, speed: 2.6, lineLifetime: 5.4, drawMode: 'lines-points', pointSize: 2.6 },
+  { id: 'mandala-drift', name: 'Mandala Drift', exprX: '(R + r) * cos(t + 0.45 * sin(u)) - (d + 0.7 * sin(u * 0.8)) * cos(((R + r) / r) * t)', exprY: '(R + r) * sin(t + 0.45 * sin(u)) - (d + 0.7 * sin(u * 0.8)) * sin(((R + r) / r) * t)', R: 4.8, r: 1.6, d: 4.9, speed: 1.25, uSpeed: 0.35, lineLifetime: 12.5, drawMode: 'lines', pointSize: 1.6 },
+]
+
+export function createLayerFromPreset(preset: Preset, id: string, name: string): LayerConfig {
+  return {
+    id,
+    name,
+    visible: true,
+    exprX: preset.exprX,
+    exprY: preset.exprY,
+    R: preset.R,
+    r: preset.r,
+    d: preset.d,
+    speed: preset.speed,
+    uSpeed: preset.uSpeed ?? 0.4,
+    lineLifetime: preset.lineLifetime,
+    lineForever: true,
+    drawMode: preset.drawMode,
+    pointSize: preset.pointSize,
+    colorMode: 'hue-cycle',
+    paletteId: 'neon',
+    hueLock: false,
+    baseHue: 210,
+  }
+}
+
+export const EQUATION_EXAMPLES: EquationExample[] = [
+  {
+    id: 'drifted-hypotrochoid',
+    name: 'Drifted Hypotrochoid',
+    exprX: '(R - r) * cos(t + 0.3 * sin(u)) + d * cos(((R - r) / r) * t)',
+    exprY: '(R - r) * sin(t + 0.3 * sin(u)) - d * sin(((R - r) / r) * t)',
+  },
+  {
+    id: 'epitrochoid-wave',
+    name: 'Epitrochoid Wave',
+    exprX: '(R + r) * cos(t) - d * cos(((R + r) / r) * t + 0.5 * sin(u))',
+    exprY: '(R + r) * sin(t) - d * sin(((R + r) / r) * t + 0.5 * sin(u))',
+  },
+  {
+    id: 'pulse-rose',
+    name: 'Pulse Rose',
+    exprX: '(R - r) * cos(t) + (d * (0.6 + 0.4 * pulse(u, 0.2))) * cos(((R - r) / r) * t)',
+    exprY: '(R - r) * sin(t) - (d * (0.6 + 0.4 * pulse(u, 0.2))) * sin(((R - r) / r) * t)',
+  },
+  {
+    id: 'triangle-flower',
+    name: 'Triangle Flower',
+    exprX: '(R - r) * cos(t + triangle(u) * 0.7) + d * cos(((R - r) / r) * t)',
+    exprY: '(R - r) * sin(t + triangle(u) * 0.7) - d * sin(((R - r) / r) * t)',
+  },
+  {
+    id: 'saw-twist',
+    name: 'Saw Twist',
+    exprX: '(R - r) * cos(t) + (d + 1.2 * saw(u)) * cos(((R - r) / r) * t)',
+    exprY: '(R - r) * sin(t) - (d + 1.2 * saw(u)) * sin(((R - r) / r) * t)',
+  },
+]
+
+export const CUSTOM_PRESET_STORAGE_KEY = 'spiro2.custom-presets'

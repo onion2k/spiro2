@@ -1,0 +1,116 @@
+.app {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem 0;
+}
+
+.control-row {
+  width: 50vw;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #cbd5e1;
+  font-size: 0.95rem;
+}
+
+.control-section {
+  width: 50vw;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 0.35rem 0.5rem 0.6rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.control-section summary {
+  cursor: pointer;
+  color: #cbd5e1;
+  font-weight: 600;
+  margin: 0.1rem 0 0.5rem;
+}
+
+.control-row label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #94a3b8;
+}
+
+.control-row input:not([type='checkbox']) {
+  flex: 1;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.control-row select {
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+.control-row.compact {
+  flex-wrap: wrap;
+}
+
+.control-row.compact input:not([type='checkbox']) {
+  flex: 0 0 5rem;
+}
+
+.control-row input[type='checkbox'] {
+  width: 1rem;
+  height: 1rem;
+}
+
+.control-row button {
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.hint {
+  width: 50vw;
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.error {
+  width: 50vw;
+  margin: 0;
+  color: #fca5a5;
+  font-size: 0.9rem;
+}
+
+.plot-canvas {
+  width: min(50vw, 50vh);
+  height: min(50vw, 50vh);
+  border: 1px solid #334155;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.55);
+  background: #0f172a;
+}
+
+@media (max-width: 900px) {
+  .control-row,
+  .control-section,
+  .error,
+  .hint {
+    width: 90vw;
+  }
+
+  .plot-canvas {
+    width: min(90vw, 90vh);
+    height: min(90vw, 90vh);
+  }
+}
