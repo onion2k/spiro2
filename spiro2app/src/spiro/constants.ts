@@ -45,7 +45,7 @@ export function createLayerFromPreset(preset: Preset, id: string, name: string):
     uSpeed: preset.uSpeed ?? 0.4,
     lineLifetime: preset.lineLifetime,
     lineForever: true,
-    drawMode: preset.drawMode,
+    drawMode: 'lines',
     pointSize: preset.pointSize,
     colorMode: 'hue-cycle',
     paletteId: 'neon',

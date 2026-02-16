@@ -117,11 +117,19 @@ export function useSpiroRenderer(options: RendererOptions) {
       const dpr = window.devicePixelRatio || 1
       const width = Math.floor(canvas.clientWidth * dpr)
       const height = Math.floor(canvas.clientHeight * dpr)
-      if (canvas.width !== width || canvas.height !== height) {
+      const mainChanged = canvas.width !== width || canvas.height !== height
+      const staticChanged = staticCanvas.width !== width || staticCanvas.height !== height
+
+      if (mainChanged) {
         canvas.width = width
         canvas.height = height
+      }
+      if (staticChanged) {
         staticCanvas.width = width
         staticCanvas.height = height
+      }
+
+      if (mainChanged || staticChanged) {
         context.fillStyle = '#020617'
         context.fillRect(0, 0, width, height)
         staticContext.fillStyle = '#020617'

@@ -77,7 +77,7 @@ function App() {
 
   const [isPaused, setIsPaused] = useState(false)
   const [resetTick, setResetTick] = useState(0)
-  const [uiMode, setUiMode] = useState<'basic' | 'advanced'>('basic')
+  const [uiMinimized, setUiMinimized] = useState(false)
 
   const activeLayer = useMemo(
     () => layers.find((layer) => layer.id === activeLayerId) ?? layers[0],
@@ -95,7 +95,6 @@ function App() {
     () => compiledLayers.find((entry) => entry.id === activeLayer?.id)?.error ?? '',
     [compiledLayers, activeLayer]
   )
-  const isAdvanced = uiMode === 'advanced'
 
   const parseNumber = (value: string, fallback: number) => {
     const parsed = Number(value)
@@ -311,7 +310,7 @@ function App() {
       uSpeed: preset.uSpeed ?? 0.4,
       lineLifetime: preset.lineLifetime,
       lineForever: true,
-      drawMode: preset.drawMode,
+      drawMode: 'lines',
       pointSize: preset.pointSize,
       colorMode: activeLayer?.colorMode ?? 'hue-cycle',
       paletteId: activeLayer?.paletteId ?? 'neon',
@@ -353,122 +352,21 @@ function App() {
 
   return (
     <main className="app">
+      <canvas ref={canvasRef} className="plot-canvas" />
+      <aside className={`ui-overlay${uiMinimized ? ' minimized' : ''}`}>
       <div className="control-row compact">
-        <label htmlFor="ui-mode">ui</label>
-        <select id="ui-mode" value={uiMode} onChange={(event) => setUiMode(event.target.value as 'basic' | 'advanced')}>
-          <option value="basic">Basic</option>
-          <option value="advanced">Advanced</option>
-        </select>
         <button type="button" onClick={() => setIsPaused((value) => !value)}>
           {isPaused ? 'Resume' : 'Pause'}
         </button>
         <button type="button" onClick={() => setResetTick((value) => value + 1)}>
           Reset
         </button>
+        <button type="button" onClick={() => setUiMinimized((value) => !value)}>
+          {uiMinimized ? 'Expand UI' : 'Minimize UI'}
+        </button>
       </div>
 
-      {!isAdvanced ? (
-        <details className="control-section" open>
-          <summary>Quick Controls</summary>
-          <div className="control-row">
-            <label htmlFor="preset">preset</label>
-            <select
-              id="preset"
-              value={selectedPresetId}
-              onChange={(event) => {
-                const value = event.target.value
-                if (value.startsWith('builtin:')) {
-                  applyPreset(value.replace('builtin:', ''))
-                  return
-                }
-                if (value.startsWith('custom:')) {
-                  applyCustomPreset(value.replace('custom:', ''))
-                }
-              }}
-            >
-              <optgroup label="Built-in">
-                {PRESETS.map((preset) => (
-                  <option key={preset.id} value={`builtin:${preset.id}`}>
-                    {preset.name}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Custom">
-                {customPresets.map((preset) => (
-                  <option key={preset.id} value={`custom:${preset.id}`}>
-                    {preset.name}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-          </div>
-          <div className="control-row compact">
-            <label htmlFor="layer-select">layer</label>
-            <select id="layer-select" value={activeLayerId} onChange={(event) => setActiveLayerId(event.target.value)}>
-              {layers.map((layer) => (
-                <option key={layer.id} value={layer.id}>
-                  {layer.name}
-                </option>
-              ))}
-            </select>
-            <label htmlFor="layer-visible">visible</label>
-            <input
-              id="layer-visible"
-              type="checkbox"
-              checked={activeLayer?.visible ?? true}
-              onChange={(event) => updateActiveLayer({ visible: event.target.checked })}
-            />
-            <button type="button" onClick={addLayer} disabled={layers.length >= 4}>
-              Add
-            </button>
-            <button type="button" onClick={removeLayer} disabled={layers.length <= 1}>
-              Remove
-            </button>
-          </div>
-          <div className="control-row compact">
-            <label htmlFor="r-big">R</label>
-            <input
-              id="r-big"
-              type="number"
-              step="0.2"
-              value={activeLayer?.R ?? 0}
-              onChange={(event) => updateActiveLayer({ R: parseNumber(event.target.value, activeLayer?.R ?? 0) })}
-            />
-            <label htmlFor="r-small">r</label>
-            <input
-              id="r-small"
-              type="number"
-              value={activeLayer?.r ?? 0}
-              onChange={(event) => updateActiveLayer({ r: parseNumber(event.target.value, activeLayer?.r ?? 0) })}
-            />
-            <label htmlFor="offset">d</label>
-            <input
-              id="offset"
-              type="number"
-              value={activeLayer?.d ?? 0}
-              onChange={(event) => updateActiveLayer({ d: parseNumber(event.target.value, activeLayer?.d ?? 0) })}
-            />
-            <label htmlFor="speed">speed</label>
-            <input
-              id="speed"
-              type="number"
-              step="0.1"
-              value={activeLayer?.speed ?? 0}
-              onChange={(event) => updateActiveLayer({ speed: parseNumber(event.target.value, activeLayer?.speed ?? 0) })}
-            />
-            <label htmlFor="draw-mode">mode</label>
-            <select
-              id="draw-mode"
-              value={activeLayer?.drawMode ?? 'lines'}
-              onChange={(event) => updateActiveLayer({ drawMode: event.target.value as DrawMode })}
-            >
-              <option value="lines">Lines</option>
-              <option value="points">Points</option>
-              <option value="lines-points">Lines + points</option>
-            </select>
-          </div>
-        </details>
-      ) : (
+      {!uiMinimized && (
         <>
           <details className="control-section" open>
             <summary>Presets And Layers</summary>
@@ -977,7 +875,7 @@ function App() {
       <p className="hint">
         Equation helpers: sin, cos, tan, sqrt, pow, PI, E, clamp(v,lo,hi), mix(a,b,p), saw(v), triangle(v), pulse(v,w). Time terms: t and u. Noise: Off, Grain, Flow.
       </p>
-      <canvas ref={canvasRef} className="plot-canvas" />
+      </aside>
     </main>
   )
 }
