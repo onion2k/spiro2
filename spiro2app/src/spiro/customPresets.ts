@@ -13,6 +13,10 @@ export function toLayerPresetData(layer: LayerConfig): LayerPresetData {
     lineForever: layer.lineForever,
     drawMode: layer.drawMode,
     pointSize: layer.pointSize,
+    multiLineCount: layer.multiLineCount,
+    multiLineMotion: layer.multiLineMotion,
+    multiLineSpread: layer.multiLineSpread,
+    multiLineMotionSpeed: layer.multiLineMotionSpeed,
     colorMode: layer.colorMode,
     paletteId: layer.paletteId,
     hueLock: layer.hueLock,
@@ -48,6 +52,10 @@ export function normalizeCustomPreset(input: unknown): CustomPreset | null {
       lineForever: Boolean(data.lineForever),
       drawMode: data.drawMode === 'points' || data.drawMode === 'lines-points' ? data.drawMode : 'lines',
       pointSize: Number.isFinite(data.pointSize) ? Number(data.pointSize) : 2.4,
+      multiLineCount: Number.isFinite(data.multiLineCount) ? Math.max(1, Math.min(16, Math.round(Number(data.multiLineCount)))) : 1,
+      multiLineMotion: data.multiLineMotion === 'orbit' || data.multiLineMotion === 'random' ? data.multiLineMotion : 'fixed',
+      multiLineSpread: Number.isFinite(data.multiLineSpread) ? Math.max(0, Number(data.multiLineSpread)) : 14,
+      multiLineMotionSpeed: Number.isFinite(data.multiLineMotionSpeed) ? Number(data.multiLineMotionSpeed) : 1,
       colorMode:
         data.colorMode === 'age' ||
         data.colorMode === 'speed' ||

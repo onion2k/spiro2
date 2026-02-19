@@ -1,5 +1,6 @@
 export type ParametricFn = (t: number, u: number, R: number, r: number, d: number) => { x: number; y: number }
 export type DrawMode = 'lines' | 'points' | 'lines-points'
+export type MultiLineMotionMode = 'fixed' | 'orbit' | 'random'
 export type ColorMode = 'hue-cycle' | 'age' | 'speed' | 'curvature' | 'palette'
 export type StrokeWidthMode = 'fixed' | 'speed' | 'curvature'
 export type NoiseMode = 'off' | 'grain' | 'flow'
@@ -21,6 +22,10 @@ export type LayerConfig = {
   lineForever: boolean
   drawMode: DrawMode
   pointSize: number
+  multiLineCount: number
+  multiLineMotion: MultiLineMotionMode
+  multiLineSpread: number
+  multiLineMotionSpeed: number
   colorMode: ColorMode
   paletteId: PaletteId
   hueLock: boolean

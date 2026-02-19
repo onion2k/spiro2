@@ -53,6 +53,35 @@ test('parseCustomPresetPayload migrates array payloads', () => {
   assert.equal(parsed.length, 1)
   assert.equal(parsed[0].id, 'b')
   assert.equal(parsed[0].data.drawMode, 'lines')
+  assert.equal(parsed[0].data.multiLineCount, 1)
+  assert.equal(parsed[0].data.multiLineMotion, 'fixed')
+})
+
+test('parseCustomPresetPayload keeps multi-line settings', () => {
+  const payload = {
+    version: 1,
+    presets: [
+      {
+        id: 'c',
+        name: 'Gamma',
+        data: {
+          exprX: 'sin(t)',
+          exprY: 'cos(t)',
+          multiLineCount: 6,
+          multiLineMotion: 'orbit',
+          multiLineSpread: 22,
+          multiLineMotionSpeed: 1.8,
+        },
+      },
+    ],
+  }
+
+  const parsed = parseCustomPresetPayload(payload)
+  assert.equal(parsed.length, 1)
+  assert.equal(parsed[0].data.multiLineCount, 6)
+  assert.equal(parsed[0].data.multiLineMotion, 'orbit')
+  assert.equal(parsed[0].data.multiLineSpread, 22)
+  assert.equal(parsed[0].data.multiLineMotionSpeed, 1.8)
 })
 
 test('toLayerPresetData strips id/name/visible', () => {

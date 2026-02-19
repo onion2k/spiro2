@@ -1,5 +1,5 @@
 import { EQUATION_EXAMPLES, PRESETS } from '@/spiro/constants'
-import type { ColorMode, CustomPreset, DrawMode, LayerConfig, PaletteId } from '@/spiro/types'
+import type { ColorMode, CustomPreset, DrawMode, LayerConfig, MultiLineMotionMode, PaletteId } from '@/spiro/types'
 import { Button } from '@/components/ui/button'
 
 export type LayerControlsProps = {
@@ -323,6 +323,63 @@ export function LayerControls({
               value={activeLayer?.pointSize ?? 0.5}
               onChange={(event) =>
                 updateActiveLayer({ pointSize: Math.max(0.5, parseNumber(event.target.value, activeLayer?.pointSize ?? 0.5)) })
+              }
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="multi-line-count">Line Copies</label>
+            <input
+              id="multi-line-count"
+              type="number"
+              title="Draw several line copies around each sampled particle point."
+              min="1"
+              max="16"
+              step="1"
+              value={activeLayer?.multiLineCount ?? 1}
+              onChange={(event) =>
+                updateActiveLayer({
+                  multiLineCount: Math.max(1, Math.min(16, Math.round(parseNumber(event.target.value, activeLayer?.multiLineCount ?? 1)))),
+                })
+              }
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="multi-line-motion">Line Motion</label>
+            <select
+              id="multi-line-motion"
+              title="How line copies move around the particle point."
+              value={activeLayer?.multiLineMotion ?? 'fixed'}
+              onChange={(event) => updateActiveLayer({ multiLineMotion: event.target.value as MultiLineMotionMode })}
+            >
+              <option value="fixed">Fixed</option>
+              <option value="orbit">Orbit</option>
+              <option value="random">Random</option>
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="multi-line-spread">Line Spread (px)</label>
+            <input
+              id="multi-line-spread"
+              type="number"
+              title="Distance from the particle point used by line copies."
+              min="0"
+              step="1"
+              value={activeLayer?.multiLineSpread ?? 14}
+              onChange={(event) =>
+                updateActiveLayer({ multiLineSpread: Math.max(0, parseNumber(event.target.value, activeLayer?.multiLineSpread ?? 14)) })
+              }
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="multi-line-motion-speed">Motion Speed</label>
+            <input
+              id="multi-line-motion-speed"
+              type="number"
+              title="Angular speed for orbit/random motion of line copies."
+              step="0.1"
+              value={activeLayer?.multiLineMotionSpeed ?? 1}
+              onChange={(event) =>
+                updateActiveLayer({ multiLineMotionSpeed: parseNumber(event.target.value, activeLayer?.multiLineMotionSpeed ?? 1) })
               }
             />
           </div>

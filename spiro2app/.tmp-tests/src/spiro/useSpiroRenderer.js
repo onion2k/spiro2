@@ -85,6 +85,32 @@ export function useSpiroRenderer(options) {
             }
             return variants;
         };
+        const buildLineOffsets = (layer, pointIndex, paramU) => {
+            const count = Math.max(1, Math.min(16, Math.round(layer.multiLineCount)));
+            const spread = Math.max(0, layer.multiLineSpread);
+            if (count === 1 || spread === 0) {
+                return [{ x: 0, y: 0 }];
+            }
+            const normalizedPhaseStep = (0.08 * layer.multiLineMotionSpeed) / Math.max(0.15, Math.abs(layer.speed));
+            const baseOrbitPhase = paramU * 0.6 + pointIndex * normalizedPhaseStep;
+            let globalPhase = 0;
+            if (layer.multiLineMotion === 'orbit') {
+                globalPhase = baseOrbitPhase;
+            }
+            else if (layer.multiLineMotion === 'random') {
+                // Random mode jitters the whole ring, while preserving equal angular spacing.
+                globalPhase = Math.sin(pointIndex * 0.071 + baseOrbitPhase * 0.83) * Math.PI;
+            }
+            const offsets = [];
+            for (let i = 0; i < count; i += 1) {
+                const angle = (i / count) * Math.PI * 2 + globalPhase;
+                offsets.push({
+                    x: Math.cos(angle) * spread,
+                    y: Math.sin(angle) * spread,
+                });
+            }
+            return offsets;
+        };
         const colorForPoint = (point, layer, nowSec) => {
             const palette = PALETTES[layer.paletteId];
             const ageRatio = layer.lineForever ? 0 : clamp01((nowSec - point.drawnAt) / layer.lineLifetime);
@@ -136,14 +162,19 @@ export function useSpiroRenderer(options) {
                         metric = current.curvatureNorm;
                     }
                     targetContext.lineWidth = baseLineWidth + lineWidthBoost * metric;
-                    const from = buildSymmetryVariants({ x: prior.x, y: prior.y }, center);
-                    const to = buildSymmetryVariants({ x: current.x, y: current.y }, center);
-                    const pairs = Math.min(from.length, to.length);
-                    for (let pair = 0; pair < pairs; pair += 1) {
-                        targetContext.beginPath();
-                        targetContext.moveTo(from[pair].x, from[pair].y);
-                        targetContext.lineTo(to[pair].x, to[pair].y);
-                        targetContext.stroke();
+                    const fromOffsets = buildLineOffsets(layer, prior.index, runtime.paramU);
+                    const toOffsets = buildLineOffsets(layer, current.index, runtime.paramU);
+                    const linePairs = Math.min(fromOffsets.length, toOffsets.length);
+                    for (let line = 0; line < linePairs; line += 1) {
+                        const from = buildSymmetryVariants({ x: prior.x + fromOffsets[line].x, y: prior.y + fromOffsets[line].y }, center);
+                        const to = buildSymmetryVariants({ x: current.x + toOffsets[line].x, y: current.y + toOffsets[line].y }, center);
+                        const pairs = Math.min(from.length, to.length);
+                        for (let pair = 0; pair < pairs; pair += 1) {
+                            targetContext.beginPath();
+                            targetContext.moveTo(from[pair].x, from[pair].y);
+                            targetContext.lineTo(to[pair].x, to[pair].y);
+                            targetContext.stroke();
+                        }
                     }
                 }
                 targetContext.setLineDash([]);
@@ -155,11 +186,14 @@ export function useSpiroRenderer(options) {
                     const point = runtime.trail[i];
                     const color = colorForPoint(point, layer, nowSec);
                     targetContext.fillStyle = `hsla(${color.hue} 95% 72% / ${Math.max(0.08, color.alpha)})`;
-                    const copies = buildSymmetryVariants({ x: point.x, y: point.y }, center);
-                    for (const copy of copies) {
-                        targetContext.beginPath();
-                        targetContext.arc(copy.x, copy.y, layer.pointSize, 0, Math.PI * 2);
-                        targetContext.fill();
+                    const offsets = buildLineOffsets(layer, point.index, runtime.paramU);
+                    for (const offset of offsets) {
+                        const copies = buildSymmetryVariants({ x: point.x + offset.x, y: point.y + offset.y }, center);
+                        for (const copy of copies) {
+                            targetContext.beginPath();
+                            targetContext.arc(copy.x, copy.y, layer.pointSize, 0, Math.PI * 2);
+                            targetContext.fill();
+                        }
                     }
                 }
             }
