@@ -40,7 +40,7 @@ export function createLayerFromPreset(preset, id, name) {
         speed: preset.speed,
         uSpeed: preset.uSpeed ?? 0.4,
         lineLifetime: preset.lineLifetime,
-        lineForever: false,
+        lineForever: true,
         drawMode: preset.drawMode,
         pointSize: preset.pointSize,
         colorMode: 'hue-cycle',
