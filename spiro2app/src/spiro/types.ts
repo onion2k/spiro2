@@ -1,5 +1,4 @@
 export type ParametricFn = (t: number, u: number, R: number, r: number, d: number) => { x: number; y: number; z: number }
-export type DrawMode = 'lines' | 'points' | 'lines-points'
 export type MultiLineMotionMode = 'fixed' | 'orbit' | 'random'
 export type ColorMode = 'hue-cycle' | 'age' | 'speed' | 'curvature' | 'palette'
 export type StrokeWidthMode = 'fixed' | 'speed' | 'curvature'
@@ -22,7 +21,6 @@ export type LayerConfig = {
   uSpeed: number
   lineLifetime: number
   lineForever: boolean
-  drawMode: DrawMode
   pointSize: number
   multiLineCount: number
   multiLineMotion: MultiLineMotionMode
@@ -59,7 +57,6 @@ export type Preset = {
   speed: number
   uSpeed?: number
   lineLifetime: number
-  drawMode: DrawMode
   pointSize: number
 }
 

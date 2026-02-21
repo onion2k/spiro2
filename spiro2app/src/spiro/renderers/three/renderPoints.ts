@@ -1,6 +1,6 @@
 import { BufferAttribute, BufferGeometry, Color, Points, PointsMaterial } from 'three'
 
-import { buildLineOffsets, buildSymmetryVariants, colorForPoint, type RuntimeLayer } from '../runtime'
+import { buildLineOffsets, buildSymmetryVariants3D, colorForPoint, tangentForTrail, type RuntimeLayer } from '../runtime'
 
 type RenderPointsOptions = {
   runtimeLayer: RuntimeLayer
@@ -21,20 +21,21 @@ export function renderPoints(options: RenderPointsOptions) {
 
   for (let i = 0; i < runtimeLayer.trail.length; i += step) {
     const point = runtimeLayer.trail[i]
-    const offsets = buildLineOffsets(layer, point.index, runtimeLayer.paramU)
+    const tangent = tangentForTrail(runtimeLayer.trail, i, step)
+    const offsets = buildLineOffsets(layer, point.index, runtimeLayer.paramU, tangent)
     const style = colorForPoint(point, layer, nowSec)
     const rgb = new Color(`hsl(${style.hue}, 95%, 72%)`)
     for (const offset of offsets) {
-      const copies = buildSymmetryVariants(
-        { x: point.x + offset.x, y: point.y + offset.y },
-        center,
+      const copies = buildSymmetryVariants3D(
+        { x: point.x + offset.x, y: point.y + offset.y, z: point.z + offset.z },
+        { x: center.x, y: center.y, z: 0 },
         mirrorX,
         mirrorY,
         rotationalRepeats,
         rotationOffsetDeg
       )
       for (const copy of copies) {
-        pointPositions.push(copy.x - center.x, center.y - copy.y, point.z)
+        pointPositions.push(copy.x - center.x, center.y - copy.y, copy.z)
         pointColors.push(rgb.r, rgb.g, rgb.b)
       }
     }
@@ -48,7 +49,7 @@ export function renderPoints(options: RenderPointsOptions) {
   pointGeometry.setAttribute('color', new BufferAttribute(new Float32Array(pointColors), 3))
   const pointMaterial = new PointsMaterial({
     size: Math.max(1, layer.pointSize * 2),
-    sizeAttenuation: false,
+    sizeAttenuation: true,
     vertexColors: true,
     transparent: true,
     opacity: 0.9,

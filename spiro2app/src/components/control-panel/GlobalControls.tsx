@@ -2,7 +2,7 @@ import type { ChangeEvent } from 'react'
 
 import type { NoiseMode, StrokeWidthMode } from '@/spiro/types'
 import type { GlobalSettings } from '@/spiro/renderers/defaults'
-import type { LineMaterialPresetId, ThreeCameraMode, ThreeLineRenderMode } from '@/spiro/renderers/types'
+import type { GlobalDrawMode, LineMaterialPresetId, ThreeCameraMode, ThreeLineRenderMode } from '@/spiro/renderers/types'
 
 export type GlobalControlsProps = {
   settings: GlobalSettings
@@ -111,7 +111,7 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
     dashedLines,
     dashLength,
     dashGap,
-    glowAmount,
+    globalDrawMode,
     threeSpriteSize,
     threeSpriteSoftness,
     autoRotateScene,
@@ -201,6 +201,18 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
             >
               <option value="fat-lines">Fat Lines</option>
               <option value="instanced-sprites">Instanced Point Sprites</option>
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="global-draw-mode">Global Draw Mode</label>
+            <select
+              id="global-draw-mode"
+              title="Render all layers as lines or points."
+              value={globalDrawMode}
+              onChange={(event) => updateSetting('globalDrawMode', event.target.value as GlobalDrawMode)}
+            >
+              <option value="lines">Lines</option>
+              <option value="points">Points</option>
             </select>
           </div>
           <div className="field">
@@ -455,7 +467,7 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
 
       <section className="panel-section">
         <h3 className="panel-section-title">Stroke</h3>
-        <p className="section-help">Configure line thickness behavior, dash style, and glow rendering.</p>
+        <p className="section-help">Configure line thickness behavior, dash style, and material rendering.</p>
         <div className="field-grid">
           <div className="field">
             <label htmlFor="stroke-width-mode">Stroke Width Mode</label>
@@ -528,18 +540,6 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
               value={dashGap}
               onChange={onNumberChange('dashGap', dashGap, { min: 0 })}
               disabled={!dashedLines}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="glow-amount">Glow Amount</label>
-            <input
-              id="glow-amount"
-              type="number"
-              title="Blur strength for glow around strokes."
-              min="0"
-              step="1"
-              value={glowAmount}
-              onChange={onNumberChange('glowAmount', glowAmount, { min: 0 })}
             />
           </div>
           <div className="field">

@@ -1,5 +1,5 @@
 import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Mesh, MeshPhysicalMaterial, Vector3 } from 'three';
-import { buildLineOffsets, buildSymmetryVariants, colorForPoint, lineWidthForPoint } from '../runtime';
+import { buildLineOffsets, buildSymmetryVariants3D, colorForPoint, lineWidthForPoint, tangentForTrail, } from '../runtime';
 function createPhysicalRibbonMaterial(options) {
     const { lineMaterialColor, lineMaterialMetalness, lineMaterialRoughness, lineMaterialClearcoat, lineMaterialClearcoatRoughness, lineMaterialTransmission, lineMaterialThickness, lineMaterialIor, } = options;
     const baseColor = new Color(lineMaterialColor);
@@ -139,7 +139,8 @@ export function renderFatLines(options) {
     const dashCycle = Math.max(1, dashLength + dashGap);
     for (let i = 0; i < runtimeLayer.trail.length; i += Math.max(1, step)) {
         const current = runtimeLayer.trail[i];
-        const offsets = buildLineOffsets(layer, current.index, runtimeLayer.paramU);
+        const tangent = tangentForTrail(runtimeLayer.trail, i, step);
+        const offsets = buildLineOffsets(layer, current.index, runtimeLayer.paramU, tangent);
         const linePairs = offsets.length;
         const style = colorForPoint(current, layer, nowSec);
         const rgb = new Color(`hsl(${style.hue}, 90%, 70%)`);
@@ -148,7 +149,7 @@ export function renderFatLines(options) {
             ? 0
             : Math.max(0, Math.min(bucketCount - 1, Math.round(((computedWidth - baseLineWidth) / Math.max(0.001, widthRange)) * (bucketCount - 1))));
         for (let line = 0; line < linePairs; line += 1) {
-            const points = buildSymmetryVariants({ x: current.x + offsets[line].x, y: current.y + offsets[line].y }, center, mirrorX, mirrorY, rotationalRepeats, rotationOffsetDeg);
+            const points = buildSymmetryVariants3D({ x: current.x + offsets[line].x, y: current.y + offsets[line].y, z: current.z + offsets[line].z }, { x: center.x, y: center.y, z: 0 }, mirrorX, mirrorY, rotationalRepeats, rotationOffsetDeg);
             for (let pair = 0; pair < points.length; pair += 1) {
                 const trackKey = `${line}:${pair}`;
                 const wasBucket = previousBucketByTrack.get(trackKey);
@@ -174,7 +175,7 @@ export function renderFatLines(options) {
                     depthBiasByTrack.set(trackKey, trackDepthBias(trackKey));
                 }
                 const zBias = depthBiasByTrack.get(trackKey) ?? 0;
-                track.positions.push(points[pair].x - center.x, center.y - points[pair].y, current.z + zBias);
+                track.positions.push(points[pair].x - center.x, center.y - points[pair].y, points[pair].z + zBias);
                 track.colors.push(rgb.r, rgb.g, rgb.b);
                 previousBucketByTrack.set(trackKey, bucketIndex);
             }

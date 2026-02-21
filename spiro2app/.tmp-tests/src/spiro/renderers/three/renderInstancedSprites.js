@@ -1,5 +1,5 @@
 import { AdditiveBlending, BufferAttribute, Color, DoubleSide, DynamicDrawUsage, InstancedBufferAttribute, InstancedBufferGeometry, Mesh, ShaderMaterial, } from 'three';
-import { buildLineOffsets, buildSymmetryVariants, colorForPoint, lineWidthForPoint } from '../runtime';
+import { buildLineOffsets, buildSymmetryVariants3D, colorForPoint, lineWidthForPoint, tangentForTrail, } from '../runtime';
 const MAX_SPRITE_COUNT = 20000;
 const INITIAL_CAPACITY = 1024;
 function clampSpriteSoftness(value) {
@@ -153,14 +153,15 @@ export function renderInstancedSprites(options) {
                 continue;
             }
         }
-        const pointOffsets = buildLineOffsets(layer, current.index, runtimeLayer.paramU);
+        const tangent = tangentForTrail(runtimeLayer.trail, i, step);
+        const pointOffsets = buildLineOffsets(layer, current.index, runtimeLayer.paramU, tangent);
         const style = colorForPoint(current, layer, nowSec);
         const rgb = new Color(`hsl(${style.hue}, 90%, 70%)`);
         const spriteSize = Math.max(1.8, lineWidthForPoint(current, strokeWidthMode, baseLineWidth, lineWidthBoost) * 2 * sizeScale);
         for (const offset of pointOffsets) {
-            const copies = buildSymmetryVariants({ x: current.x + offset.x, y: current.y + offset.y }, center, mirrorX, mirrorY, rotationalRepeats, rotationOffsetDeg);
+            const copies = buildSymmetryVariants3D({ x: current.x + offset.x, y: current.y + offset.y, z: current.z + offset.z }, { x: center.x, y: center.y, z: 0 }, mirrorX, mirrorY, rotationalRepeats, rotationOffsetDeg);
             for (const copy of copies) {
-                spritePositions.push(copy.x - center.x, center.y - copy.y, current.z);
+                spritePositions.push(copy.x - center.x, center.y - copy.y, copy.z);
                 spriteSizes.push(spriteSize);
                 spriteColors.push(rgb);
             }

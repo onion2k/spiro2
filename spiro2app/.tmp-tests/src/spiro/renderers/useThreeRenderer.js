@@ -6,7 +6,7 @@ import { createThreeCamera, resizeThreeCamera } from './three/camera';
 import { renderPoints } from './three/renderPoints';
 import { clearGroup, createGlowSpriteTexture } from './three/resources';
 export function useThreeRenderer(options) {
-    const { containerRef, enabled, layers, compiledLayers, isPaused, resetTick, mirrorX, mirrorY, rotationalRepeats, rotationOffsetDeg, amplitudeMod, frequencyMod, phaseMod, noiseMode, noiseAmount, noiseFrequency, noiseSpeed, noiseOctaves, noiseSeed, strokeWidthMode, baseLineWidth, lineWidthBoost, dashedLines, dashLength, dashGap, threeCameraMode, threeLineRenderMode, threeSpriteSize, threeSpriteSoftness, autoRotateScene, autoRotateSpeed, lineMaterialColor, lineMaterialMetalness, lineMaterialRoughness, lineMaterialClearcoat, lineMaterialClearcoatRoughness, lineMaterialTransmission, lineMaterialThickness, lineMaterialIor, maxTrailPointsPerLayer, adaptiveQuality, maxAdaptiveStep, onHudStats, } = options;
+    const { containerRef, enabled, layers, compiledLayers, isPaused, resetTick, mirrorX, mirrorY, rotationalRepeats, rotationOffsetDeg, amplitudeMod, frequencyMod, phaseMod, noiseMode, noiseAmount, noiseFrequency, noiseSpeed, noiseOctaves, noiseSeed, strokeWidthMode, baseLineWidth, lineWidthBoost, dashedLines, dashLength, dashGap, globalDrawMode, threeCameraMode, threeLineRenderMode, threeSpriteSize, threeSpriteSoftness, autoRotateScene, autoRotateSpeed, lineMaterialColor, lineMaterialMetalness, lineMaterialRoughness, lineMaterialClearcoat, lineMaterialClearcoatRoughness, lineMaterialTransmission, lineMaterialThickness, lineMaterialIor, maxTrailPointsPerLayer, adaptiveQuality, maxAdaptiveStep, onHudStats, } = options;
     useEffect(() => {
         if (!enabled) {
             return;
@@ -137,8 +137,8 @@ export function useThreeRenderer(options) {
                     }
                     trailPoints += runtimeLayer.trail.length;
                     const step = runtimeLayer.trail.length > 3000 ? Math.ceil(runtimeLayer.trail.length / 3000) : 1;
-                    const shouldDrawLines = layer.drawMode === 'lines' || layer.drawMode === 'lines-points';
-                    const shouldDrawPoints = layer.drawMode === 'points' || layer.drawMode === 'lines-points';
+                    const shouldDrawLines = globalDrawMode === 'lines';
+                    const shouldDrawPoints = globalDrawMode === 'points';
                     if (shouldDrawLines) {
                         if (threeLineRenderMode === 'instanced-sprites' && renderInstancedSpritesFn) {
                             const sprites = renderInstancedSpritesFn({
@@ -313,6 +313,7 @@ export function useThreeRenderer(options) {
         dashedLines,
         dashLength,
         dashGap,
+        globalDrawMode,
         threeCameraMode,
         threeLineRenderMode,
         threeSpriteSize,

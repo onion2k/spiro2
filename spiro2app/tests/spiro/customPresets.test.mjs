@@ -20,7 +20,6 @@ test('parseCustomPresetPayload accepts v1 payloads', () => {
           uSpeed: 0.4,
           lineLifetime: 9,
           lineForever: false,
-          drawMode: 'lines',
           pointSize: 2,
           colorMode: 'hue-cycle',
           paletteId: 'neon',
@@ -52,7 +51,6 @@ test('parseCustomPresetPayload migrates array payloads', () => {
   const parsed = parseCustomPresetPayload(payload)
   assert.equal(parsed.length, 1)
   assert.equal(parsed[0].id, 'b')
-  assert.equal(parsed[0].data.drawMode, 'lines')
   assert.equal(parsed[0].data.multiLineCount, 1)
   assert.equal(parsed[0].data.multiLineMotion, 'fixed')
 })
@@ -98,7 +96,6 @@ test('toLayerPresetData strips id/name/visible', () => {
     uSpeed: 5,
     lineLifetime: 6,
     lineForever: true,
-    drawMode: 'points',
     pointSize: 2.2,
     colorMode: 'palette',
     paletteId: 'ocean',

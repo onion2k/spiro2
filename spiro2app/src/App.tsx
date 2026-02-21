@@ -293,7 +293,6 @@ function App() {
       uSpeed: preset.uSpeed ?? 0.4,
       lineLifetime: preset.lineLifetime,
       lineForever: true,
-      drawMode: preset.drawMode,
       pointSize: preset.pointSize,
       multiLineCount: activeLayer?.multiLineCount ?? 1,
       multiLineMotion: activeLayer?.multiLineMotion ?? 'fixed',

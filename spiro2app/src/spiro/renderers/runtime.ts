@@ -1,16 +1,18 @@
 import { PALETTES } from '../constants'
-import { clamp01, interpolateHue, rotatePoint } from '../math'
+import { clamp01, interpolateHue } from '../math'
 import { fbmNoise2D, hashNoise2D } from '../noise'
-import type { LayerConfig, Point, StrokeWidthMode, TrailPoint } from '../types'
+import type { LayerConfig, StrokeWidthMode, TrailPoint } from '../types'
 import type { CompiledLayer, SpiroRendererConfig } from './types'
+
+type Point3 = { x: number; y: number; z: number }
 
 export type RuntimeLayer = {
   layer: LayerConfig
   fn: CompiledLayer['fn']
   paramT: number
   paramU: number
-  previous: Point | null
-  previousAngle: number | null
+  previous: Point3 | null
+  previousDirection: Point3 | null
   trail: TrailPoint[]
   pointIndex: number
   sampleCounter: number
@@ -56,7 +58,7 @@ export function createRuntimeState(layers: LayerConfig[], compiledLayers: Compil
       paramT: 0,
       paramU: 0,
       previous: null,
-      previousAngle: null,
+      previousDirection: null,
       trail: [],
       pointIndex: 0,
       sampleCounter: 0,
@@ -110,7 +112,7 @@ export function stepRuntime(options: StepRuntimeOptions) {
       paramT: 0,
       paramU: 0,
       previous: null,
-      previousAngle: null,
+      previousDirection: null,
       trail: [],
       pointIndex: 0,
       sampleCounter: 0,
@@ -176,17 +178,27 @@ export function stepRuntime(options: StepRuntimeOptions) {
           if (runtime.previous && dt > 0) {
             const dx = x - runtime.previous.x
             const dy = y - runtime.previous.y
-            const distance = Math.hypot(dx, dy)
+            const dz = z - runtime.previous.z
+            const distance = Math.hypot(dx, dy, dz)
             speedNorm = clamp01(distance / (Math.min(width, height) * 0.04))
 
-            const angle = Math.atan2(dy, dx)
-            if (runtime.previousAngle !== null) {
-              const turn = Math.atan2(Math.sin(angle - runtime.previousAngle), Math.cos(angle - runtime.previousAngle))
-              curvatureNorm = clamp01(Math.abs(turn) / Math.PI)
+            if (distance > 1e-6) {
+              const direction = { x: dx / distance, y: dy / distance, z: dz / distance }
+              if (runtime.previousDirection) {
+                const dot =
+                  runtime.previousDirection.x * direction.x +
+                  runtime.previousDirection.y * direction.y +
+                  runtime.previousDirection.z * direction.z
+                const clampedDot = Math.max(-1, Math.min(1, dot))
+                const turn = Math.acos(clampedDot)
+                curvatureNorm = clamp01(turn / Math.PI)
+              }
+              runtime.previousDirection = direction
+            } else {
+              runtime.previousDirection = null
             }
-            runtime.previousAngle = angle
           } else {
-            runtime.previousAngle = null
+            runtime.previousDirection = null
           }
 
           runtime.trail.push({
@@ -201,10 +213,10 @@ export function stepRuntime(options: StepRuntimeOptions) {
             index: runtime.pointIndex,
           })
           runtime.pointIndex += 1
-          runtime.previous = { x, y }
+          runtime.previous = { x, y, z }
         } else {
           runtime.previous = null
-          runtime.previousAngle = null
+          runtime.previousDirection = null
         }
       }
     }
@@ -221,7 +233,7 @@ export function stepRuntime(options: StepRuntimeOptions) {
           runtime.trail[0].connected = false
         } else {
           runtime.previous = null
-          runtime.previousAngle = null
+          runtime.previousDirection = null
         }
       }
     }
@@ -238,11 +250,39 @@ export function stepRuntime(options: StepRuntimeOptions) {
   return { nowSec, center }
 }
 
-export function buildLineOffsets(layer: LayerConfig, pointIndex: number, paramU: number) {
+function normalize3(vector: Point3) {
+  const length = Math.hypot(vector.x, vector.y, vector.z)
+  if (length < 1e-8) {
+    return { x: 1, y: 0, z: 0 }
+  }
+  return { x: vector.x / length, y: vector.y / length, z: vector.z / length }
+}
+
+function cross3(a: Point3, b: Point3): Point3 {
+  return {
+    x: a.y * b.z - a.z * b.y,
+    y: a.z * b.x - a.x * b.z,
+    z: a.x * b.y - a.y * b.x,
+  }
+}
+
+export function tangentForTrail(trail: TrailPoint[], index: number, step: number): Point3 {
+  const previousIndex = Math.max(0, index - Math.max(1, step))
+  const nextIndex = Math.min(trail.length - 1, index + Math.max(1, step))
+  const previous = trail[previousIndex]
+  const next = trail[nextIndex]
+  return normalize3({
+    x: next.x - previous.x,
+    y: next.y - previous.y,
+    z: next.z - previous.z,
+  })
+}
+
+export function buildLineOffsets(layer: LayerConfig, pointIndex: number, paramU: number, tangent?: Point3) {
   const count = Math.max(1, Math.min(16, Math.round(layer.multiLineCount)))
   const spread = Math.max(0, layer.multiLineSpread)
   if (count === 1 || spread === 0) {
-    return [{ x: 0, y: 0 }]
+    return [{ x: 0, y: 0, z: 0 }]
   }
   const normalizedPhaseStep = (0.08 * layer.multiLineMotionSpeed) / Math.max(0.15, Math.abs(layer.speed))
   const baseOrbitPhase = paramU * 0.6 + pointIndex * normalizedPhaseStep
@@ -252,37 +292,55 @@ export function buildLineOffsets(layer: LayerConfig, pointIndex: number, paramU:
   } else if (layer.multiLineMotion === 'random') {
     globalPhase = Math.sin(pointIndex * 0.071 + baseOrbitPhase * 0.83) * Math.PI
   }
-  const offsets: Point[] = []
+  const offsets: Point3[] = []
+  const tangentDir = normalize3(tangent ?? { x: 0, y: 0, z: 1 })
+  const reference = Math.abs(tangentDir.z) < 0.95 ? { x: 0, y: 0, z: 1 } : { x: 0, y: 1, z: 0 }
+  const basisU = normalize3(cross3(reference, tangentDir))
+  const basisV = normalize3(cross3(tangentDir, basisU))
   for (let i = 0; i < count; i += 1) {
     const angle = (i / count) * Math.PI * 2 + globalPhase
-    offsets.push({ x: Math.cos(angle) * spread, y: Math.sin(angle) * spread })
+    const localX = Math.cos(angle) * spread
+    const localY = Math.sin(angle) * spread
+    offsets.push({
+      x: basisU.x * localX + basisV.x * localY,
+      y: basisU.y * localX + basisV.y * localY,
+      z: basisU.z * localX + basisV.z * localY,
+    })
   }
   return offsets
 }
 
-export function buildSymmetryVariants(
-  point: Point,
-  center: Point,
+export function buildSymmetryVariants3D(
+  point: Point3,
+  center: Point3,
   mirrorX: boolean,
   mirrorY: boolean,
   rotationalRepeats: number,
   rotationOffsetDeg: number
 ) {
-  const variants: Point[] = []
+  const variants: Point3[] = []
   const repeats = Math.max(1, rotationalRepeats)
   const offsetRad = (rotationOffsetDeg * Math.PI) / 180
   for (let i = 0; i < repeats; i += 1) {
     const angle = offsetRad + (i / repeats) * Math.PI * 2
-    const rotated = rotatePoint(point, center, angle)
+    const cosA = Math.cos(angle)
+    const sinA = Math.sin(angle)
+    const relativeX = point.x - center.x
+    const relativeY = point.y - center.y
+    const rotated = {
+      x: center.x + relativeX * cosA - relativeY * sinA,
+      y: center.y + relativeX * sinA + relativeY * cosA,
+      z: point.z,
+    }
     variants.push(rotated)
     if (mirrorX) {
-      variants.push({ x: center.x * 2 - rotated.x, y: rotated.y })
+      variants.push({ x: center.x * 2 - rotated.x, y: rotated.y, z: rotated.z })
     }
     if (mirrorY) {
-      variants.push({ x: rotated.x, y: center.y * 2 - rotated.y })
+      variants.push({ x: rotated.x, y: center.y * 2 - rotated.y, z: rotated.z })
     }
     if (mirrorX && mirrorY) {
-      variants.push({ x: center.x * 2 - rotated.x, y: center.y * 2 - rotated.y })
+      variants.push({ x: center.x * 2 - rotated.x, y: center.y * 2 - rotated.y, z: rotated.z })
     }
   }
   return variants

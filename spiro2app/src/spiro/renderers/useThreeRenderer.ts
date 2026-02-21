@@ -52,6 +52,7 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     dashedLines,
     dashLength,
     dashGap,
+    globalDrawMode,
     threeCameraMode,
     threeLineRenderMode,
     threeSpriteSize,
@@ -220,8 +221,8 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
           }
           trailPoints += runtimeLayer.trail.length
           const step = runtimeLayer.trail.length > 3000 ? Math.ceil(runtimeLayer.trail.length / 3000) : 1
-          const shouldDrawLines = layer.drawMode === 'lines' || layer.drawMode === 'lines-points'
-          const shouldDrawPoints = layer.drawMode === 'points' || layer.drawMode === 'lines-points'
+          const shouldDrawLines = globalDrawMode === 'lines'
+          const shouldDrawPoints = globalDrawMode === 'points'
 
           if (shouldDrawLines) {
             if (threeLineRenderMode === 'instanced-sprites' && renderInstancedSpritesFn) {
@@ -405,6 +406,7 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     dashedLines,
     dashLength,
     dashGap,
+    globalDrawMode,
     threeCameraMode,
     threeLineRenderMode,
     threeSpriteSize,

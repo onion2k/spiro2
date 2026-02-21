@@ -12,7 +12,14 @@ import {
   type Texture,
 } from 'three'
 
-import { buildLineOffsets, buildSymmetryVariants, colorForPoint, lineWidthForPoint, type RuntimeLayer } from '../runtime'
+import {
+  buildLineOffsets,
+  buildSymmetryVariants3D,
+  colorForPoint,
+  lineWidthForPoint,
+  tangentForTrail,
+  type RuntimeLayer,
+} from '../runtime'
 import type { StrokeWidthMode } from '../../types'
 
 const MAX_SPRITE_COUNT = 20000
@@ -250,7 +257,8 @@ export function renderInstancedSprites(options: RenderInstancedSpritesOptions): 
         continue
       }
     }
-    const pointOffsets = buildLineOffsets(layer, current.index, runtimeLayer.paramU)
+    const tangent = tangentForTrail(runtimeLayer.trail, i, step)
+    const pointOffsets = buildLineOffsets(layer, current.index, runtimeLayer.paramU, tangent)
     const style = colorForPoint(current, layer, nowSec)
     const rgb = new Color(`hsl(${style.hue}, 90%, 70%)`)
     const spriteSize = Math.max(
@@ -259,16 +267,16 @@ export function renderInstancedSprites(options: RenderInstancedSpritesOptions): 
     )
 
     for (const offset of pointOffsets) {
-      const copies = buildSymmetryVariants(
-        { x: current.x + offset.x, y: current.y + offset.y },
-        center,
+      const copies = buildSymmetryVariants3D(
+        { x: current.x + offset.x, y: current.y + offset.y, z: current.z + offset.z },
+        { x: center.x, y: center.y, z: 0 },
         mirrorX,
         mirrorY,
         rotationalRepeats,
         rotationOffsetDeg
       )
       for (const copy of copies) {
-        spritePositions.push(copy.x - center.x, center.y - copy.y, current.z)
+        spritePositions.push(copy.x - center.x, center.y - copy.y, copy.z)
         spriteSizes.push(spriteSize)
         spriteColors.push(rgb)
       }

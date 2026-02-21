@@ -1,5 +1,5 @@
 import { EQUATION_EXAMPLES, PRESETS } from '@/spiro/constants'
-import type { ColorMode, CustomPreset, DrawMode, LayerConfig, MultiLineMotionMode, PaletteId } from '@/spiro/types'
+import type { ColorMode, CustomPreset, LayerConfig, MultiLineMotionMode, PaletteId } from '@/spiro/types'
 import { Button } from '@/components/ui/button'
 
 export type LayerControlsProps = {
@@ -231,7 +231,7 @@ export function LayerControls({
 
       <section className="panel-section">
         <h3 className="panel-section-title">Curve</h3>
-        <p className="section-help">Shape and timing controls for the selected layer’s trajectory and trail rendering mode.</p>
+        <p className="section-help">Shape and timing controls for the selected layer trajectory and trail behavior.</p>
         <div className="field-grid">
           <div className="field">
             <label htmlFor="r-big">R (Outer Radius)</label>
@@ -325,24 +325,11 @@ export function LayerControls({
             />
           </div>
           <div className="field">
-            <label htmlFor="draw-mode">Draw Mode</label>
-            <select
-              id="draw-mode"
-              title="Choose whether to render lines, points, or both."
-              value={activeLayer?.drawMode ?? 'lines'}
-              onChange={(event) => updateActiveLayer({ drawMode: event.target.value as DrawMode })}
-            >
-              <option value="lines">Lines</option>
-              <option value="points">Points</option>
-              <option value="lines-points">Lines + Points</option>
-            </select>
-          </div>
-          <div className="field">
             <label htmlFor="point-size">Point Size</label>
             <input
               id="point-size"
               type="number"
-              title="Point radius when draw mode includes points."
+              title="Point radius used when Global Draw Mode is set to Points."
               min="0.5"
               step="0.1"
               value={activeLayer?.pointSize ?? 0.5}
