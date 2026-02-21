@@ -1,6 +1,8 @@
 import type { NoiseMode, StrokeWidthMode } from '@/spiro/types'
+import type { RendererType } from '@/spiro/renderers/types'
 
 export type GlobalControlsProps = {
+  rendererType: RendererType
   rotationalRepeats: number
   rotationOffsetDeg: number
   mirrorX: boolean
@@ -47,10 +49,12 @@ export type GlobalControlsProps = {
   setDashLength: (value: number) => void
   setDashGap: (value: number) => void
   setGlowAmount: (value: number) => void
+  setRendererType: (value: RendererType) => void
   parseNumber: (value: string, fallback: number) => number
 }
 
 export function GlobalControls({
+  rendererType,
   rotationalRepeats,
   rotationOffsetDeg,
   mirrorX,
@@ -97,10 +101,31 @@ export function GlobalControls({
   setDashLength,
   setDashGap,
   setGlowAmount,
+  setRendererType,
   parseNumber,
 }: GlobalControlsProps) {
   return (
     <section className="control-group" aria-label="Global Controls">
+      <section className="panel-section">
+        <h3 className="panel-section-title">Renderer</h3>
+        <p className="section-help">Switch rendering backend between Canvas, SVG, and three.js.</p>
+        <div className="field-grid">
+          <div className="field">
+            <label htmlFor="renderer-type">Renderer</label>
+            <select
+              id="renderer-type"
+              title="Select the rendering backend."
+              value={rendererType}
+              onChange={(event) => setRendererType(event.target.value as RendererType)}
+            >
+              <option value="canvas2d">Canvas 2D</option>
+              <option value="svg">SVG</option>
+              <option value="three">three.js</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
       <section className="panel-section">
         <h3 className="panel-section-title">Symmetry</h3>
         <p className="section-help">Apply mirror and rotational symmetry to all active layers.</p>

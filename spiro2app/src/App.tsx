@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import { ControlPanel } from './components/control-panel/ControlPanel'
 
 import { compileParametric } from './spiro/equation'
-import { useSpiroRenderer } from './spiro/useSpiroRenderer'
 import {
   createLayerFromPreset,
   CUSTOM_PRESET_STORAGE_KEY,
@@ -19,10 +18,15 @@ import type {
   NoiseMode,
   StrokeWidthMode,
 } from './spiro/types'
+import type { RendererType } from './spiro/renderers/types'
+
+const CanvasSurface = lazy(() => import('./spiro/renderers/CanvasSurface'))
+const SvgSurface = lazy(() => import('./spiro/renderers/SvgSurface'))
+const ThreeSurface = lazy(() => import('./spiro/renderers/ThreeSurface'))
 
 function App() {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const layerCounterRef = useRef(2)
+  const [rendererType, setRendererType] = useState<RendererType>('canvas2d')
 
   const [selectedPresetId, setSelectedPresetId] = useState(`builtin:${PRESETS[0].id}`)
   const [customPresets, setCustomPresets] = useState<CustomPreset[]>(() => {
@@ -333,8 +337,7 @@ function App() {
     }
   }
 
-  useSpiroRenderer({
-    canvasRef,
+  const rendererConfig = {
     layers,
     compiledLayers,
     isPaused,
@@ -362,11 +365,15 @@ function App() {
     maxTrailPointsPerLayer,
     adaptiveQuality,
     maxAdaptiveStep,
-  })
+  }
 
   return (
     <main className="app">
-      <canvas ref={canvasRef} className="plot-canvas" />
+      <Suspense fallback={<div className="plot-canvas" />}>
+        {rendererType === 'canvas2d' ? <CanvasSurface {...rendererConfig} /> : null}
+        {rendererType === 'svg' ? <SvgSurface {...rendererConfig} /> : null}
+        {rendererType === 'three' ? <ThreeSurface {...rendererConfig} /> : null}
+      </Suspense>
       <ControlPanel
         uiMinimized={uiMinimized}
         isPaused={isPaused}
@@ -428,6 +435,7 @@ function App() {
           dashLength,
           dashGap,
           glowAmount,
+          rendererType,
           setRotationalRepeats,
           setRotationOffsetDeg,
           setMirrorX,
@@ -451,6 +459,7 @@ function App() {
           setDashLength,
           setDashGap,
           setGlowAmount,
+          setRendererType,
           parseNumber,
         }}
       />
