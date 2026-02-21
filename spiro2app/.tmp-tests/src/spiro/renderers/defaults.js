@@ -1,5 +1,5 @@
 export const DEFAULT_GLOBAL_SETTINGS = {
-    threeCameraMode: 'orthographic',
+    threeCameraMode: 'perspective',
     threeLineRenderMode: 'fat-lines',
     rotationalRepeats: 1,
     rotationOffsetDeg: 0,

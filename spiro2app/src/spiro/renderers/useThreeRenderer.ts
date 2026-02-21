@@ -16,7 +16,6 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import type { RendererHudStats, SpiroRendererConfig } from './types'
 import { createRuntimeState, stepRuntime } from './runtime'
 import { createThreeCamera, resizeThreeCamera } from './three/camera'
-import { renderPoints } from './three/renderPoints'
 import { clearGroup, createGlowSpriteTexture } from './three/resources'
 
 type ThreeRendererOptions = SpiroRendererConfig & {
@@ -52,7 +51,6 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     dashedLines,
     dashLength,
     dashGap,
-    globalDrawMode,
     threeCameraMode,
     threeLineRenderMode,
     threeSpriteSize,
@@ -221,94 +219,70 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
           }
           trailPoints += runtimeLayer.trail.length
           const step = runtimeLayer.trail.length > 3000 ? Math.ceil(runtimeLayer.trail.length / 3000) : 1
-          const shouldDrawLines = globalDrawMode === 'lines'
-          const shouldDrawPoints = globalDrawMode === 'points'
-
-          if (shouldDrawLines) {
-            if (threeLineRenderMode === 'instanced-sprites' && renderInstancedSpritesFn) {
-              const sprites = renderInstancedSpritesFn({
-                runtimeLayer,
-                center,
-                nowSec,
-                width,
-                height,
-                step,
-                camera,
-                spriteGeometry,
-                spriteTexture,
-                spriteSizeScale: threeSpriteSize,
-                spriteSoftness: threeSpriteSoftness,
-                mirrorX,
-                mirrorY,
-                rotationalRepeats,
-                rotationOffsetDeg,
-                strokeWidthMode,
-                baseLineWidth,
-                lineWidthBoost,
-                dashedLines,
-                dashLength,
-                dashGap,
-                existingMesh: spriteMeshByLayer.get(runtimeLayer.layer.id) ?? undefined,
-              })
-              if (sprites) {
-                activeSpriteLayerIds.add(runtimeLayer.layer.id)
-                spriteMeshByLayer.set(runtimeLayer.layer.id, sprites)
-                const spriteCount =
-                  typeof sprites.userData?.spriteInstanceCount === 'number'
-                    ? sprites.userData.spriteInstanceCount
-                    : 0
-                instancedSprites += spriteCount
-                lineObjects += 1
-                drawGroup.add(sprites)
-              }
-            } else if (threeLineRenderMode === 'fat-lines' && renderFatLinesFn) {
-              const fatLines = renderFatLinesFn({
-                runtimeLayer,
-                center,
-                nowSec,
-                width,
-                height,
-                step,
-                mirrorX,
-                mirrorY,
-                rotationalRepeats,
-                rotationOffsetDeg,
-                strokeWidthMode,
-                baseLineWidth,
-                lineWidthBoost,
-                dashedLines,
-                dashLength,
-                dashGap,
-                lineMaterialColor,
-                lineMaterialMetalness,
-                lineMaterialRoughness,
-                lineMaterialClearcoat,
-                lineMaterialClearcoatRoughness,
-                lineMaterialTransmission,
-                lineMaterialThickness,
-                lineMaterialIor,
-              })
-              lineObjects += fatLines.length
-              for (const line of fatLines) {
-                drawGroup.add(line)
-              }
-            }
-          }
-
-          if (shouldDrawPoints) {
-            const points = renderPoints({
+          if (threeLineRenderMode === 'instanced-sprites' && renderInstancedSpritesFn) {
+            const sprites = renderInstancedSpritesFn({
               runtimeLayer,
               center,
               nowSec,
+              width,
+              height,
+              step,
+              camera,
+              spriteGeometry,
+              spriteTexture,
+              spriteSizeScale: threeSpriteSize,
+              spriteSoftness: threeSpriteSoftness,
+              mirrorX,
+              mirrorY,
+              rotationalRepeats,
+              rotationOffsetDeg,
+              strokeWidthMode,
+              baseLineWidth,
+              lineWidthBoost,
+              dashedLines,
+              dashLength,
+              dashGap,
+              existingMesh: spriteMeshByLayer.get(runtimeLayer.layer.id) ?? undefined,
+            })
+            if (sprites) {
+              activeSpriteLayerIds.add(runtimeLayer.layer.id)
+              spriteMeshByLayer.set(runtimeLayer.layer.id, sprites)
+              const spriteCount =
+                typeof sprites.userData?.spriteInstanceCount === 'number' ? sprites.userData.spriteInstanceCount : 0
+              instancedSprites += spriteCount
+              lineObjects += 1
+              drawGroup.add(sprites)
+            }
+          } else if (threeLineRenderMode === 'fat-lines' && renderFatLinesFn) {
+            const fatLines = renderFatLinesFn({
+              runtimeLayer,
+              center,
+              nowSec,
+              width,
+              height,
               step,
               mirrorX,
               mirrorY,
               rotationalRepeats,
               rotationOffsetDeg,
+              strokeWidthMode,
+              baseLineWidth,
+              lineWidthBoost,
+              dashedLines,
+              dashLength,
+              dashGap,
+              lineMaterialColor,
+              lineMaterialMetalness,
+              lineMaterialRoughness,
+              lineMaterialClearcoat,
+              lineMaterialClearcoatRoughness,
+              lineMaterialTransmission,
+              lineMaterialThickness,
+              lineMaterialIor,
             })
-            if (points) {
-              pointVertices += points.geometry.getAttribute('position').count
-              drawGroup.add(points)
+            lineObjects += fatLines.length
+            for (const line of fatLines) {
+              drawGroup.add(line)
             }
           }
         }
@@ -406,7 +380,6 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     dashedLines,
     dashLength,
     dashGap,
-    globalDrawMode,
     threeCameraMode,
     threeLineRenderMode,
     threeSpriteSize,

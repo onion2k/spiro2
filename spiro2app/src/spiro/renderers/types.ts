@@ -2,7 +2,7 @@ import type { LayerConfig, NoiseMode, StrokeWidthMode } from '../types'
 
 export type ThreeCameraMode = 'orthographic' | 'perspective'
 export type ThreeLineRenderMode = 'fat-lines' | 'instanced-sprites'
-export type GlobalDrawMode = 'lines' | 'points'
+export type GlobalDrawMode = 'lines'
 export type LineMaterialPresetId = 'matte-ribbon' | 'satin-plastic' | 'brushed-metal' | 'chrome' | 'frosted-glass' | 'custom'
 
 export type CompiledLayer = {

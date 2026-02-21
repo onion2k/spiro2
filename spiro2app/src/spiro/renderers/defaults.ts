@@ -3,7 +3,7 @@ import type { SpiroRendererConfig } from './types'
 export type GlobalSettings = Omit<SpiroRendererConfig, 'layers' | 'compiledLayers' | 'isPaused' | 'resetTick'>
 
 export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
-  threeCameraMode: 'orthographic',
+  threeCameraMode: 'perspective',
   threeLineRenderMode: 'fat-lines',
   rotationalRepeats: 1,
   rotationOffsetDeg: 0,

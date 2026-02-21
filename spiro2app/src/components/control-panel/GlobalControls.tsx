@@ -2,7 +2,7 @@ import type { ChangeEvent } from 'react'
 
 import type { NoiseMode, StrokeWidthMode } from '@/spiro/types'
 import type { GlobalSettings } from '@/spiro/renderers/defaults'
-import type { GlobalDrawMode, LineMaterialPresetId, ThreeCameraMode, ThreeLineRenderMode } from '@/spiro/renderers/types'
+import type { LineMaterialPresetId, ThreeCameraMode, ThreeLineRenderMode } from '@/spiro/renderers/types'
 
 export type GlobalControlsProps = {
   settings: GlobalSettings
@@ -111,7 +111,6 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
     dashedLines,
     dashLength,
     dashGap,
-    globalDrawMode,
     threeSpriteSize,
     threeSpriteSoftness,
     autoRotateScene,
@@ -201,18 +200,6 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
             >
               <option value="fat-lines">Fat Lines</option>
               <option value="instanced-sprites">Instanced Point Sprites</option>
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="global-draw-mode">Global Draw Mode</label>
-            <select
-              id="global-draw-mode"
-              title="Render all layers as lines or points."
-              value={globalDrawMode}
-              onChange={(event) => updateSetting('globalDrawMode', event.target.value as GlobalDrawMode)}
-            >
-              <option value="lines">Lines</option>
-              <option value="points">Points</option>
             </select>
           </div>
           <div className="field">

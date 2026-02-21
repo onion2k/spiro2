@@ -1,4 +1,4 @@
-# my-vite-app
+# Spiro
 
 Vite + React + TypeScript project configured to use Rolldown via:
 
@@ -7,7 +7,7 @@ Vite + React + TypeScript project configured to use Rolldown via:
 ## Run
 
 ```bash
-cd my-vite-app
+cd spiro2app
 npm install
 npm run dev
 ```
