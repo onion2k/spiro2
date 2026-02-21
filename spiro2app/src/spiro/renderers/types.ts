@@ -33,6 +33,8 @@ export type SpiroRendererConfig = {
   dashLength: number
   dashGap: number
   glowAmount: number
+  threeSpriteSize: number
+  threeSpriteSoftness: number
   threeCameraMode: ThreeCameraMode
   threeLineRenderMode: ThreeLineRenderMode
   maxTrailPointsPerLayer: number

@@ -43,6 +43,8 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     dashGap,
     threeCameraMode,
     threeLineRenderMode,
+    threeSpriteSize,
+    threeSpriteSoftness,
     maxTrailPointsPerLayer,
     adaptiveQuality,
     maxAdaptiveStep,
@@ -80,6 +82,10 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
         threeLineRenderMode === 'instanced-sprites' && 'renderInstancedSprites' in renderModules
           ? renderModules.renderInstancedSprites
           : null
+      const disposeSpriteBatchMeshFn =
+        threeLineRenderMode === 'instanced-sprites' && 'disposeSpriteBatchMesh' in renderModules
+          ? renderModules.disposeSpriteBatchMesh
+          : null
 
       container.replaceChildren()
       const renderer = new WebGLRenderer({ antialias: true })
@@ -108,6 +114,7 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
       })
 
       const runtime = createRuntimeState(layers, compiledLayers)
+      const spriteMeshByLayer = new Map<string, NonNullable<ReturnType<NonNullable<typeof renderInstancedSpritesFn>>>>()
       let animationFrame = 0
       let lastWidth = 0
       let lastHeight = 0
@@ -167,6 +174,7 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
         let pointVertices = 0
         let instancedSprites = 0
         let lineObjects = 0
+        const activeSpriteLayerIds = new Set<string>()
 
         for (const runtimeLayer of runtime.runtimeLayers) {
           const layer = runtimeLayer.layer
@@ -184,10 +192,14 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
                 runtimeLayer,
                 center,
                 nowSec,
+                width,
+                height,
                 step,
                 camera,
                 spriteGeometry,
                 spriteTexture,
+                spriteSizeScale: threeSpriteSize,
+                spriteSoftness: threeSpriteSoftness,
                 mirrorX,
                 mirrorY,
                 rotationalRepeats,
@@ -198,9 +210,16 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
                 dashedLines,
                 dashLength,
                 dashGap,
+                existingMesh: spriteMeshByLayer.get(runtimeLayer.layer.id) ?? undefined,
               })
               if (sprites) {
-                instancedSprites += sprites.count
+                activeSpriteLayerIds.add(runtimeLayer.layer.id)
+                spriteMeshByLayer.set(runtimeLayer.layer.id, sprites)
+                const spriteCount =
+                  typeof sprites.userData?.spriteInstanceCount === 'number'
+                    ? sprites.userData.spriteInstanceCount
+                    : 0
+                instancedSprites += spriteCount
                 lineObjects += 1
                 drawGroup.add(sprites)
               }
@@ -248,6 +267,21 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
           }
         }
 
+        if (threeLineRenderMode === 'instanced-sprites' && disposeSpriteBatchMeshFn) {
+          for (const [layerId, spriteMesh] of spriteMeshByLayer) {
+            if (activeSpriteLayerIds.has(layerId)) {
+              continue
+            }
+            disposeSpriteBatchMeshFn(spriteMesh)
+            spriteMeshByLayer.delete(layerId)
+          }
+        } else if (disposeSpriteBatchMeshFn) {
+          for (const [layerId, spriteMesh] of spriteMeshByLayer) {
+            disposeSpriteBatchMeshFn(spriteMesh)
+            spriteMeshByLayer.delete(layerId)
+          }
+        }
+
         controls.update()
         renderer.render(scene, camera)
 
@@ -278,6 +312,12 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
         cancelAnimationFrame(animationFrame)
         window.removeEventListener('resize', resize)
         clearGroup(drawGroup)
+        if (disposeSpriteBatchMeshFn) {
+          for (const [, spriteMesh] of spriteMeshByLayer) {
+            disposeSpriteBatchMeshFn(spriteMesh)
+          }
+          spriteMeshByLayer.clear()
+        }
         controls.dispose()
         spriteGeometry.dispose()
         spriteTexture.dispose()
@@ -320,6 +360,8 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     dashGap,
     threeCameraMode,
     threeLineRenderMode,
+    threeSpriteSize,
+    threeSpriteSoftness,
     maxTrailPointsPerLayer,
     adaptiveQuality,
     maxAdaptiveStep,

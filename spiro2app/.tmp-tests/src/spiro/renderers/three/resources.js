@@ -16,12 +16,17 @@ export function createGlowSpriteTexture() {
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
-    return new CanvasTexture(canvas);
+    const texture = new CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
 }
 export function disposeRenderableObject(node) {
     const renderObject = node;
-    if (renderObject.geometry) {
+    if (renderObject.geometry && !renderObject.userData?.skipGeometryDispose) {
         renderObject.geometry.dispose();
+    }
+    if (renderObject.userData?.skipMaterialDispose) {
+        return;
     }
     if (Array.isArray(renderObject.material)) {
         for (const material of renderObject.material) {

@@ -47,6 +47,8 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
     dashLength,
     dashGap,
     glowAmount,
+    threeSpriteSize,
+    threeSpriteSoftness,
   } = settings
 
   const parseBoundedNumber = (value: string, fallback: number, bounds: NumericBounds = {}) => {
@@ -99,6 +101,34 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
               <option value="fat-lines">Fat Lines</option>
               <option value="instanced-sprites">Instanced Point Sprites</option>
             </select>
+          </div>
+          <div className="field">
+            <label htmlFor="three-sprite-size">Sprite Size</label>
+            <input
+              id="three-sprite-size"
+              type="number"
+              title="Scale multiplier for instanced sprite quads."
+              min="0.2"
+              max="4"
+              step="0.1"
+              value={threeSpriteSize}
+              onChange={onNumberChange('threeSpriteSize', threeSpriteSize, { min: 0.2, max: 4 })}
+              disabled={threeLineRenderMode !== 'instanced-sprites'}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="three-sprite-softness">Sprite Softness</label>
+            <input
+              id="three-sprite-softness"
+              type="number"
+              title="Controls edge falloff softness for instanced sprites."
+              min="0"
+              max="1"
+              step="0.05"
+              value={threeSpriteSoftness}
+              onChange={onNumberChange('threeSpriteSoftness', threeSpriteSoftness, { min: 0, max: 1 })}
+              disabled={threeLineRenderMode !== 'instanced-sprites'}
+            />
           </div>
         </div>
       </section>

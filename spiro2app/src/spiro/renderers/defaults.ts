@@ -28,4 +28,6 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   dashLength: 10,
   dashGap: 6,
   glowAmount: 0,
+  threeSpriteSize: 1,
+  threeSpriteSoftness: 0.65,
 }
