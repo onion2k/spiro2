@@ -73,7 +73,7 @@ export function ControlPanel({
 
         {activeLayerError ? <p className="error">{activeLayerError}</p> : null}
         <p className="hint">
-          Equation helpers: sin, cos, tan, sqrt, pow, PI, E, clamp(v,lo,hi), mix(a,b,p), saw(v), triangle(v), pulse(v,w). Time terms: t and u. Noise: Off, Grain, Flow.
+          Equation helpers: sin, cos, tan, sqrt, pow, PI, E, clamp(v,lo,hi), mix(a,b,p), saw(v), triangle(v), pulse(v,w). Time terms: t and u. Define x, y, and z equations per layer. Noise: Off, Grain, Flow.
         </p>
       </CardContent>
     </Card>

@@ -1,0 +1,31 @@
+import type { SpiroRendererConfig } from './types'
+
+export type GlobalSettings = Omit<SpiroRendererConfig, 'layers' | 'compiledLayers' | 'isPaused' | 'resetTick'>
+
+export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
+  threeCameraMode: 'orthographic',
+  threeLineRenderMode: 'fat-lines',
+  rotationalRepeats: 1,
+  rotationOffsetDeg: 0,
+  mirrorX: false,
+  mirrorY: false,
+  phaseMod: 0,
+  frequencyMod: 0,
+  amplitudeMod: 0,
+  noiseMode: 'off',
+  noiseAmount: 0,
+  noiseFrequency: 0.7,
+  noiseSpeed: 0.5,
+  noiseOctaves: 3,
+  noiseSeed: 3.2,
+  adaptiveQuality: true,
+  maxTrailPointsPerLayer: 12000,
+  maxAdaptiveStep: 4,
+  strokeWidthMode: 'fixed',
+  baseLineWidth: 1.5,
+  lineWidthBoost: 3,
+  dashedLines: false,
+  dashLength: 10,
+  dashGap: 6,
+  glowAmount: 0,
+}

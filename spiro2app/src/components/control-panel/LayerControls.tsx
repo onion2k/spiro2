@@ -11,10 +11,10 @@ export type LayerControlsProps = {
   activeLayerId: string
   activeLayer: LayerConfig | undefined
   equationExampleId: string
-  activeEquation: 'x' | 'y'
+  activeEquation: 'x' | 'y' | 'z'
   setCustomPresetName: (value: string) => void
   setActiveLayerId: (value: string) => void
-  setActiveEquation: (value: 'x' | 'y') => void
+  setActiveEquation: (value: 'x' | 'y' | 'z') => void
   onPresetSelect: (value: string) => void
   updateActiveLayer: (patch: Partial<LayerConfig>) => void
   saveNewCustomPreset: () => void
@@ -152,7 +152,7 @@ export function LayerControls({
 
       <section className="panel-section">
         <h3 className="panel-section-title">Equations</h3>
-        <p className="section-help">Define parametric formulas for x and y. These formulas run continuously over time variables t and u.</p>
+        <p className="section-help">Define parametric formulas for x, y, and z. These formulas run continuously over time variables t and u.</p>
 
         <div className="field-grid">
           <div className="field field-span-2">
@@ -181,9 +181,22 @@ export function LayerControls({
             />
           </div>
 
+          <div className="field field-span-2">
+            <label htmlFor="equation-z">z(t,u)</label>
+            <input
+              id="equation-z"
+              title="Expression for z(t,u). Use 0 for a flat plane."
+              value={activeLayer?.exprZ ?? '0'}
+              onChange={(event) => updateActiveLayer({ exprZ: event.target.value })}
+              onFocus={() => setActiveEquation('z')}
+              spellCheck={false}
+              autoComplete="off"
+            />
+          </div>
+
           <div className="field">
             <label htmlFor="equation-example">Example</label>
-            <select id="equation-example" title="Apply a predefined equation pair." value={equationExampleId} onChange={(event) => applyEquationExample(event.target.value)}>
+            <select id="equation-example" title="Apply a predefined equation set." value={equationExampleId} onChange={(event) => applyEquationExample(event.target.value)}>
               <option value="">Custom</option>
               {EQUATION_EXAMPLES.map((example) => (
                 <option key={example.id} value={example.id}>
@@ -197,12 +210,13 @@ export function LayerControls({
             <label htmlFor="active-equation">Target</label>
             <select
               id="active-equation"
-              title="Choose whether snippet buttons append to x(t,u) or y(t,u)."
+              title="Choose whether snippet buttons append to x(t,u), y(t,u), or z(t,u)."
               value={activeEquation}
-              onChange={(event) => setActiveEquation(event.target.value as 'x' | 'y')}
+              onChange={(event) => setActiveEquation(event.target.value as 'x' | 'y' | 'z')}
             >
               <option value="x">x(t,u)</option>
               <option value="y">y(t,u)</option>
+              <option value="z">z(t,u)</option>
             </select>
           </div>
         </div>
@@ -270,6 +284,17 @@ export function LayerControls({
               step="0.05"
               value={activeLayer?.uSpeed ?? 0}
               onChange={(event) => updateActiveLayer({ uSpeed: parseNumber(event.target.value, activeLayer?.uSpeed ?? 0) })}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="z-scale">Z Scale</label>
+            <input
+              id="z-scale"
+              type="number"
+              title="Scales z(t,u) depth contribution for 3D renderers."
+              step="0.05"
+              value={activeLayer?.zScale ?? 0.6}
+              onChange={(event) => updateActiveLayer({ zScale: parseNumber(event.target.value, activeLayer?.zScale ?? 0.6) })}
             />
           </div>
           <div className="field">

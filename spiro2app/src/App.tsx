@@ -3,6 +3,9 @@ import './App.css'
 import { ControlPanel } from './components/control-panel/ControlPanel'
 
 import { compileParametric } from './spiro/equation'
+import { buildRendererConfig } from './spiro/renderers/config'
+import { DEFAULT_GLOBAL_SETTINGS } from './spiro/renderers/defaults'
+import type { GlobalSettings } from './spiro/renderers/defaults'
 import {
   createLayerFromPreset,
   CUSTOM_PRESET_STORAGE_KEY,
@@ -15,18 +18,12 @@ import type {
   CustomPresetStoreV1,
   LayerConfig,
   LayerPresetData,
-  NoiseMode,
-  StrokeWidthMode,
 } from './spiro/types'
-import type { RendererType } from './spiro/renderers/types'
 
-const CanvasSurface = lazy(() => import('./spiro/renderers/CanvasSurface'))
-const SvgSurface = lazy(() => import('./spiro/renderers/SvgSurface'))
 const ThreeSurface = lazy(() => import('./spiro/renderers/ThreeSurface'))
 
 function App() {
   const layerCounterRef = useRef(2)
-  const [rendererType, setRendererType] = useState<RendererType>('canvas2d')
 
   const [selectedPresetId, setSelectedPresetId] = useState(`builtin:${PRESETS[0].id}`)
   const [customPresets, setCustomPresets] = useState<CustomPreset[]>(() => {
@@ -48,39 +45,17 @@ function App() {
     createLayerFromPreset(PRESETS[0], 'layer-1', 'Layer 1'),
   ])
   const [activeLayerId, setActiveLayerId] = useState('layer-1')
-
-  const [mirrorX, setMirrorX] = useState(false)
-  const [mirrorY, setMirrorY] = useState(false)
-  const [rotationalRepeats, setRotationalRepeats] = useState(1)
-  const [rotationOffsetDeg, setRotationOffsetDeg] = useState(0)
-
-  const [strokeWidthMode, setStrokeWidthMode] = useState<StrokeWidthMode>('fixed')
-  const [baseLineWidth, setBaseLineWidth] = useState(1.5)
-  const [lineWidthBoost, setLineWidthBoost] = useState(3)
-  const [dashedLines, setDashedLines] = useState(false)
-  const [dashLength, setDashLength] = useState(10)
-  const [dashGap, setDashGap] = useState(6)
-  const [glowAmount, setGlowAmount] = useState(0)
   const [equationExampleId, setEquationExampleId] = useState('')
-  const [activeEquation, setActiveEquation] = useState<'x' | 'y'>('x')
-
-  const [amplitudeMod, setAmplitudeMod] = useState(0)
-  const [frequencyMod, setFrequencyMod] = useState(0)
-  const [phaseMod, setPhaseMod] = useState(0)
-  const [noiseMode, setNoiseMode] = useState<NoiseMode>('off')
-  const [noiseAmount, setNoiseAmount] = useState(0)
-  const [noiseFrequency, setNoiseFrequency] = useState(0.7)
-  const [noiseSpeed, setNoiseSpeed] = useState(0.5)
-  const [noiseOctaves, setNoiseOctaves] = useState(3)
-  const [noiseSeed, setNoiseSeed] = useState(3.2)
-  const [maxTrailPointsPerLayer, setMaxTrailPointsPerLayer] = useState(12000)
-  const [adaptiveQuality, setAdaptiveQuality] = useState(true)
-  const [maxAdaptiveStep, setMaxAdaptiveStep] = useState(4)
+  const [activeEquation, setActiveEquation] = useState<'x' | 'y' | 'z'>('x')
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings>(() => ({ ...DEFAULT_GLOBAL_SETTINGS }))
 
   const [isPaused, setIsPaused] = useState(false)
   const [resetTick, setResetTick] = useState(0)
   const [uiMinimized, setUiMinimized] = useState(false)
   const [controlTab, setControlTab] = useState<'layer' | 'global'>('layer')
+  const updateGlobalSetting = <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => {
+    setGlobalSettings((current) => ({ ...current, [key]: value }))
+  }
 
   const activeLayer = useMemo(
     () => layers.find((layer) => layer.id === activeLayerId) ?? layers[0],
@@ -90,7 +65,7 @@ function App() {
     () =>
       layers.map((layer) => ({
         id: layer.id,
-        ...compileParametric(layer.exprX, layer.exprY),
+        ...compileParametric(layer.exprX, layer.exprY, layer.exprZ),
       })),
     [layers]
   )
@@ -281,7 +256,7 @@ function App() {
     if (!example) {
       return
     }
-    updateActiveLayer({ exprX: example.exprX, exprY: example.exprY })
+    updateActiveLayer({ exprX: example.exprX, exprY: example.exprY, exprZ: example.exprZ ?? '0' })
     setResetTick((value) => value + 1)
   }
 
@@ -291,8 +266,10 @@ function App() {
     }
     if (activeEquation === 'x') {
       updateActiveLayer({ exprX: `${activeLayer.exprX}${snippet}` })
-    } else {
+    } else if (activeEquation === 'y') {
       updateActiveLayer({ exprY: `${activeLayer.exprY}${snippet}` })
+    } else {
+      updateActiveLayer({ exprZ: `${activeLayer.exprZ}${snippet}` })
     }
   }
 
@@ -307,9 +284,11 @@ function App() {
     applyLayerPresetData({
       exprX: preset.exprX,
       exprY: preset.exprY,
+      exprZ: preset.exprZ ?? '0',
       R: preset.R,
       r: preset.r,
       d: preset.d,
+      zScale: preset.zScale ?? (activeLayer?.zScale ?? 0.6),
       speed: preset.speed,
       uSpeed: preset.uSpeed ?? 0.4,
       lineLifetime: preset.lineLifetime,
@@ -337,42 +316,22 @@ function App() {
     }
   }
 
-  const rendererConfig = {
-    layers,
-    compiledLayers,
-    isPaused,
-    resetTick,
-    mirrorX,
-    mirrorY,
-    rotationalRepeats,
-    rotationOffsetDeg,
-    amplitudeMod,
-    frequencyMod,
-    phaseMod,
-    noiseMode,
-    noiseAmount,
-    noiseFrequency,
-    noiseSpeed,
-    noiseOctaves,
-    noiseSeed,
-    strokeWidthMode,
-    baseLineWidth,
-    lineWidthBoost,
-    dashedLines,
-    dashLength,
-    dashGap,
-    glowAmount,
-    maxTrailPointsPerLayer,
-    adaptiveQuality,
-    maxAdaptiveStep,
-  }
+  const rendererConfig = useMemo(
+    () =>
+      buildRendererConfig({
+        layers,
+        compiledLayers,
+        isPaused,
+        resetTick,
+        settings: globalSettings,
+      }),
+    [layers, compiledLayers, isPaused, resetTick, globalSettings]
+  )
 
   return (
     <main className="app">
       <Suspense fallback={<div className="plot-canvas" />}>
-        {rendererType === 'canvas2d' ? <CanvasSurface {...rendererConfig} /> : null}
-        {rendererType === 'svg' ? <SvgSurface {...rendererConfig} /> : null}
-        {rendererType === 'three' ? <ThreeSurface {...rendererConfig} /> : null}
+        <ThreeSurface {...rendererConfig} />
       </Suspense>
       <ControlPanel
         uiMinimized={uiMinimized}
@@ -412,54 +371,8 @@ function App() {
           parseNumber,
         }}
         globalProps={{
-          rotationalRepeats,
-          rotationOffsetDeg,
-          mirrorX,
-          mirrorY,
-          phaseMod,
-          frequencyMod,
-          amplitudeMod,
-          noiseMode,
-          noiseAmount,
-          noiseFrequency,
-          noiseSpeed,
-          noiseOctaves,
-          noiseSeed,
-          adaptiveQuality,
-          maxTrailPointsPerLayer,
-          maxAdaptiveStep,
-          strokeWidthMode,
-          baseLineWidth,
-          lineWidthBoost,
-          dashedLines,
-          dashLength,
-          dashGap,
-          glowAmount,
-          rendererType,
-          setRotationalRepeats,
-          setRotationOffsetDeg,
-          setMirrorX,
-          setMirrorY,
-          setPhaseMod,
-          setFrequencyMod,
-          setAmplitudeMod,
-          setNoiseMode,
-          setNoiseAmount,
-          setNoiseFrequency,
-          setNoiseSpeed,
-          setNoiseOctaves,
-          setNoiseSeed,
-          setAdaptiveQuality,
-          setMaxTrailPointsPerLayer,
-          setMaxAdaptiveStep,
-          setStrokeWidthMode,
-          setBaseLineWidth,
-          setLineWidthBoost,
-          setDashedLines,
-          setDashLength,
-          setDashGap,
-          setGlowAmount,
-          setRendererType,
+          settings: globalSettings,
+          updateSetting: updateGlobalSetting,
           parseNumber,
         }}
       />

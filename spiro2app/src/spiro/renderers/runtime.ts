@@ -147,7 +147,7 @@ export function stepRuntime(options: StepRuntimeOptions) {
           (runtime.paramU + phaseMod * 0.35 * Math.cos(runtime.paramT * 0.29)) *
           (1 + frequencyMod * 0.35 * Math.sin(runtime.paramT * 0.23))
         const point = runtime.fn(modT, modU, layer.R, layer.r, layer.d)
-        if (Number.isFinite(point.x) && Number.isFinite(point.y)) {
+        if (Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z)) {
           const amplitudeScaleX = 1 + amplitudeMod * Math.sin(runtime.paramU * 0.91)
           const amplitudeScaleY = 1 + amplitudeMod * Math.cos(runtime.paramU * 0.73)
           const nx = modT * noiseFrequency + runtime.paramT * noiseSpeed
@@ -164,10 +164,12 @@ export function stepRuntime(options: StepRuntimeOptions) {
           }
           const modX = point.x * amplitudeScaleX + wobbleX
           const modY = point.y * amplitudeScaleY + wobbleY
+          const modZ = point.z * layer.zScale
           const maxRange = Math.max(1, Math.abs(layer.R - layer.r) + Math.abs(layer.d))
           const scale = (Math.min(width, height) * 0.46) / maxRange
           const x = center.x + modX * scale
           const y = center.y + modY * scale
+          const z = modZ * scale
 
           let speedNorm = 0
           let curvatureNorm = 0
@@ -190,6 +192,7 @@ export function stepRuntime(options: StepRuntimeOptions) {
           runtime.trail.push({
             x,
             y,
+            z,
             drawnAt: nowSec,
             hue: (runtime.paramT * 40) % 360,
             connected: runtime.previous !== null,

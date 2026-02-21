@@ -1,12 +1,11 @@
-import type { RefObject } from 'react'
-
 import type { LayerConfig, NoiseMode, StrokeWidthMode } from '../types'
 
-export type RendererType = 'canvas2d' | 'svg' | 'three'
+export type ThreeCameraMode = 'orthographic' | 'perspective'
+export type ThreeLineRenderMode = 'fat-lines' | 'instanced-sprites'
 
 export type CompiledLayer = {
   id: string
-  fn: ((t: number, u: number, R: number, r: number, d: number) => { x: number; y: number }) | null
+  fn: ((t: number, u: number, R: number, r: number, d: number) => { x: number; y: number; z: number }) | null
 }
 
 export type SpiroRendererConfig = {
@@ -34,14 +33,9 @@ export type SpiroRendererConfig = {
   dashLength: number
   dashGap: number
   glowAmount: number
+  threeCameraMode: ThreeCameraMode
+  threeLineRenderMode: ThreeLineRenderMode
   maxTrailPointsPerLayer: number
   adaptiveQuality: boolean
   maxAdaptiveStep: number
-}
-
-export type SpiroRendererOptions = SpiroRendererConfig & {
-  rendererType: RendererType
-  canvasRef: RefObject<HTMLCanvasElement | null>
-  svgRef: RefObject<SVGSVGElement | null>
-  threeContainerRef: RefObject<HTMLDivElement | null>
 }

@@ -1,4 +1,4 @@
-export type ParametricFn = (t: number, u: number, R: number, r: number, d: number) => { x: number; y: number }
+export type ParametricFn = (t: number, u: number, R: number, r: number, d: number) => { x: number; y: number; z: number }
 export type DrawMode = 'lines' | 'points' | 'lines-points'
 export type MultiLineMotionMode = 'fixed' | 'orbit' | 'random'
 export type ColorMode = 'hue-cycle' | 'age' | 'speed' | 'curvature' | 'palette'
@@ -13,9 +13,11 @@ export type LayerConfig = {
   visible: boolean
   exprX: string
   exprY: string
+  exprZ: string
   R: number
   r: number
   d: number
+  zScale: number
   speed: number
   uSpeed: number
   lineLifetime: number
@@ -35,6 +37,7 @@ export type LayerConfig = {
 export type TrailPoint = {
   x: number
   y: number
+  z: number
   drawnAt: number
   hue: number
   connected: boolean
@@ -48,9 +51,11 @@ export type Preset = {
   name: string
   exprX: string
   exprY: string
+  exprZ?: string
   R: number
   r: number
   d: number
+  zScale?: number
   speed: number
   uSpeed?: number
   lineLifetime: number
@@ -78,4 +83,5 @@ export type EquationExample = {
   name: string
   exprX: string
   exprY: string
+  exprZ?: string
 }

@@ -1,126 +1,103 @@
+import type { ChangeEvent } from 'react'
+
 import type { NoiseMode, StrokeWidthMode } from '@/spiro/types'
-import type { RendererType } from '@/spiro/renderers/types'
+import type { GlobalSettings } from '@/spiro/renderers/defaults'
+import type { ThreeCameraMode, ThreeLineRenderMode } from '@/spiro/renderers/types'
 
 export type GlobalControlsProps = {
-  rendererType: RendererType
-  rotationalRepeats: number
-  rotationOffsetDeg: number
-  mirrorX: boolean
-  mirrorY: boolean
-  phaseMod: number
-  frequencyMod: number
-  amplitudeMod: number
-  noiseMode: NoiseMode
-  noiseAmount: number
-  noiseFrequency: number
-  noiseSpeed: number
-  noiseOctaves: number
-  noiseSeed: number
-  adaptiveQuality: boolean
-  maxTrailPointsPerLayer: number
-  maxAdaptiveStep: number
-  strokeWidthMode: StrokeWidthMode
-  baseLineWidth: number
-  lineWidthBoost: number
-  dashedLines: boolean
-  dashLength: number
-  dashGap: number
-  glowAmount: number
-  setRotationalRepeats: (value: number) => void
-  setRotationOffsetDeg: (value: number) => void
-  setMirrorX: (value: boolean) => void
-  setMirrorY: (value: boolean) => void
-  setPhaseMod: (value: number) => void
-  setFrequencyMod: (value: number) => void
-  setAmplitudeMod: (value: number) => void
-  setNoiseMode: (value: NoiseMode) => void
-  setNoiseAmount: (value: number) => void
-  setNoiseFrequency: (value: number) => void
-  setNoiseSpeed: (value: number) => void
-  setNoiseOctaves: (value: number) => void
-  setNoiseSeed: (value: number) => void
-  setAdaptiveQuality: (value: boolean) => void
-  setMaxTrailPointsPerLayer: (value: number) => void
-  setMaxAdaptiveStep: (value: number) => void
-  setStrokeWidthMode: (value: StrokeWidthMode) => void
-  setBaseLineWidth: (value: number) => void
-  setLineWidthBoost: (value: number) => void
-  setDashedLines: (value: boolean) => void
-  setDashLength: (value: number) => void
-  setDashGap: (value: number) => void
-  setGlowAmount: (value: number) => void
-  setRendererType: (value: RendererType) => void
+  settings: GlobalSettings
+  updateSetting: <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => void
   parseNumber: (value: string, fallback: number) => number
 }
 
-export function GlobalControls({
-  rendererType,
-  rotationalRepeats,
-  rotationOffsetDeg,
-  mirrorX,
-  mirrorY,
-  phaseMod,
-  frequencyMod,
-  amplitudeMod,
-  noiseMode,
-  noiseAmount,
-  noiseFrequency,
-  noiseSpeed,
-  noiseOctaves,
-  noiseSeed,
-  adaptiveQuality,
-  maxTrailPointsPerLayer,
-  maxAdaptiveStep,
-  strokeWidthMode,
-  baseLineWidth,
-  lineWidthBoost,
-  dashedLines,
-  dashLength,
-  dashGap,
-  glowAmount,
-  setRotationalRepeats,
-  setRotationOffsetDeg,
-  setMirrorX,
-  setMirrorY,
-  setPhaseMod,
-  setFrequencyMod,
-  setAmplitudeMod,
-  setNoiseMode,
-  setNoiseAmount,
-  setNoiseFrequency,
-  setNoiseSpeed,
-  setNoiseOctaves,
-  setNoiseSeed,
-  setAdaptiveQuality,
-  setMaxTrailPointsPerLayer,
-  setMaxAdaptiveStep,
-  setStrokeWidthMode,
-  setBaseLineWidth,
-  setLineWidthBoost,
-  setDashedLines,
-  setDashLength,
-  setDashGap,
-  setGlowAmount,
-  setRendererType,
-  parseNumber,
-}: GlobalControlsProps) {
+type NumericSettingKey = {
+  [K in keyof GlobalSettings]: GlobalSettings[K] extends number ? K : never
+}[keyof GlobalSettings]
+
+type NumericBounds = {
+  min?: number
+  max?: number
+  integer?: boolean
+}
+
+export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalControlsProps) {
+  const {
+    threeCameraMode,
+    threeLineRenderMode,
+    rotationalRepeats,
+    rotationOffsetDeg,
+    mirrorX,
+    mirrorY,
+    phaseMod,
+    frequencyMod,
+    amplitudeMod,
+    noiseMode,
+    noiseAmount,
+    noiseFrequency,
+    noiseSpeed,
+    noiseOctaves,
+    noiseSeed,
+    adaptiveQuality,
+    maxTrailPointsPerLayer,
+    maxAdaptiveStep,
+    strokeWidthMode,
+    baseLineWidth,
+    lineWidthBoost,
+    dashedLines,
+    dashLength,
+    dashGap,
+    glowAmount,
+  } = settings
+
+  const parseBoundedNumber = (value: string, fallback: number, bounds: NumericBounds = {}) => {
+    const { min, max, integer = false } = bounds
+    let next = parseNumber(value, fallback)
+    if (integer) {
+      next = Math.round(next)
+    }
+    if (typeof min === 'number') {
+      next = Math.max(min, next)
+    }
+    if (typeof max === 'number') {
+      next = Math.min(max, next)
+    }
+    return next
+  }
+
+  const onNumberChange =
+    <K extends NumericSettingKey>(key: K, fallback: number, bounds?: NumericBounds) =>
+    (event: ChangeEvent<HTMLInputElement>) => {
+      updateSetting(key, parseBoundedNumber(event.target.value, fallback, bounds) as GlobalSettings[K])
+    }
+
   return (
     <section className="control-group" aria-label="Global Controls">
       <section className="panel-section">
         <h3 className="panel-section-title">Renderer</h3>
-        <p className="section-help">Switch rendering backend between Canvas, SVG, and three.js.</p>
+        <p className="section-help">Configure three.js camera projection and line rendering mode.</p>
         <div className="field-grid">
           <div className="field">
-            <label htmlFor="renderer-type">Renderer</label>
+            <label htmlFor="three-camera-mode">three.js Camera</label>
             <select
-              id="renderer-type"
-              title="Select the rendering backend."
-              value={rendererType}
-              onChange={(event) => setRendererType(event.target.value as RendererType)}
+              id="three-camera-mode"
+              title="Switch between orthographic and perspective camera projection."
+              value={threeCameraMode}
+              onChange={(event) => updateSetting('threeCameraMode', event.target.value as ThreeCameraMode)}
             >
-              <option value="canvas2d">Canvas 2D</option>
-              <option value="svg">SVG</option>
-              <option value="three">three.js</option>
+              <option value="orthographic">Orthographic</option>
+              <option value="perspective">Perspective</option>
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="three-line-render-mode">three.js Line Mode</label>
+            <select
+              id="three-line-render-mode"
+              title="Choose how line mode is rendered in three.js."
+              value={threeLineRenderMode}
+              onChange={(event) => updateSetting('threeLineRenderMode', event.target.value as ThreeLineRenderMode)}
+            >
+              <option value="fat-lines">Fat Lines</option>
+              <option value="instanced-sprites">Instanced Point Sprites</option>
             </select>
           </div>
         </div>
@@ -140,9 +117,7 @@ export function GlobalControls({
               max="16"
               step="1"
               value={rotationalRepeats}
-              onChange={(event) =>
-                setRotationalRepeats(Math.max(1, Math.min(16, Math.round(parseNumber(event.target.value, rotationalRepeats)))))
-              }
+              onChange={onNumberChange('rotationalRepeats', rotationalRepeats, { min: 1, max: 16, integer: true })}
             />
           </div>
           <div className="field">
@@ -153,16 +128,16 @@ export function GlobalControls({
               title="Angular offset in degrees between repeated copies."
               step="1"
               value={rotationOffsetDeg}
-              onChange={(event) => setRotationOffsetDeg(parseNumber(event.target.value, rotationOffsetDeg))}
+              onChange={onNumberChange('rotationOffsetDeg', rotationOffsetDeg)}
             />
           </div>
           <div className="field checkbox-field">
             <label htmlFor="mirror-x">Mirror X</label>
-            <input id="mirror-x" type="checkbox" title="Mirror output across the X axis." checked={mirrorX} onChange={(event) => setMirrorX(event.target.checked)} />
+            <input id="mirror-x" type="checkbox" title="Mirror output across the X axis." checked={mirrorX} onChange={(event) => updateSetting('mirrorX', event.target.checked)} />
           </div>
           <div className="field checkbox-field">
             <label htmlFor="mirror-y">Mirror Y</label>
-            <input id="mirror-y" type="checkbox" title="Mirror output across the Y axis." checked={mirrorY} onChange={(event) => setMirrorY(event.target.checked)} />
+            <input id="mirror-y" type="checkbox" title="Mirror output across the Y axis." checked={mirrorY} onChange={(event) => updateSetting('mirrorY', event.target.checked)} />
           </div>
         </div>
       </section>
@@ -179,7 +154,7 @@ export function GlobalControls({
               title="Phase offset modulation strength."
               step="0.05"
               value={phaseMod}
-              onChange={(event) => setPhaseMod(parseNumber(event.target.value, phaseMod))}
+              onChange={onNumberChange('phaseMod', phaseMod)}
             />
           </div>
           <div className="field">
@@ -190,7 +165,7 @@ export function GlobalControls({
               title="Frequency modulation strength."
               step="0.05"
               value={frequencyMod}
-              onChange={(event) => setFrequencyMod(parseNumber(event.target.value, frequencyMod))}
+              onChange={onNumberChange('frequencyMod', frequencyMod)}
             />
           </div>
           <div className="field">
@@ -201,12 +176,12 @@ export function GlobalControls({
               title="Amplitude modulation strength."
               step="0.05"
               value={amplitudeMod}
-              onChange={(event) => setAmplitudeMod(parseNumber(event.target.value, amplitudeMod))}
+              onChange={onNumberChange('amplitudeMod', amplitudeMod)}
             />
           </div>
           <div className="field">
             <label htmlFor="noise-mode">Noise Mode</label>
-            <select id="noise-mode" title="Select noise algorithm or disable noise." value={noiseMode} onChange={(event) => setNoiseMode(event.target.value as NoiseMode)}>
+            <select id="noise-mode" title="Select noise algorithm or disable noise." value={noiseMode} onChange={(event) => updateSetting('noiseMode', event.target.value as NoiseMode)}>
               <option value="off">Off</option>
               <option value="grain">Grain</option>
               <option value="flow">Flow</option>
@@ -221,7 +196,7 @@ export function GlobalControls({
               step="0.05"
               min="0"
               value={noiseAmount}
-              onChange={(event) => setNoiseAmount(Math.max(0, parseNumber(event.target.value, noiseAmount)))}
+              onChange={onNumberChange('noiseAmount', noiseAmount, { min: 0 })}
               disabled={noiseMode === 'off'}
             />
           </div>
@@ -234,7 +209,7 @@ export function GlobalControls({
               step="0.1"
               min="0.1"
               value={noiseFrequency}
-              onChange={(event) => setNoiseFrequency(Math.max(0.1, parseNumber(event.target.value, noiseFrequency)))}
+              onChange={onNumberChange('noiseFrequency', noiseFrequency, { min: 0.1 })}
               disabled={noiseMode === 'off'}
             />
           </div>
@@ -247,7 +222,7 @@ export function GlobalControls({
               step="0.05"
               min="0"
               value={noiseSpeed}
-              onChange={(event) => setNoiseSpeed(Math.max(0, parseNumber(event.target.value, noiseSpeed)))}
+              onChange={onNumberChange('noiseSpeed', noiseSpeed, { min: 0 })}
               disabled={noiseMode === 'off'}
             />
           </div>
@@ -261,7 +236,7 @@ export function GlobalControls({
               max="6"
               step="1"
               value={noiseOctaves}
-              onChange={(event) => setNoiseOctaves(Math.max(1, Math.min(6, Math.round(parseNumber(event.target.value, noiseOctaves)))))}
+              onChange={onNumberChange('noiseOctaves', noiseOctaves, { min: 1, max: 6, integer: true })}
               disabled={noiseMode !== 'flow'}
             />
           </div>
@@ -273,7 +248,7 @@ export function GlobalControls({
               title="Seed value for deterministic noise variation."
               step="0.1"
               value={noiseSeed}
-              onChange={(event) => setNoiseSeed(parseNumber(event.target.value, noiseSeed))}
+              onChange={onNumberChange('noiseSeed', noiseSeed)}
               disabled={noiseMode === 'off'}
             />
           </div>
@@ -291,7 +266,7 @@ export function GlobalControls({
               type="checkbox"
               title="Skip points adaptively when rendering gets expensive."
               checked={adaptiveQuality}
-              onChange={(event) => setAdaptiveQuality(event.target.checked)}
+              onChange={(event) => updateSetting('adaptiveQuality', event.target.checked)}
             />
           </div>
           <div className="field">
@@ -303,9 +278,7 @@ export function GlobalControls({
               min="1000"
               step="500"
               value={maxTrailPointsPerLayer}
-              onChange={(event) =>
-                setMaxTrailPointsPerLayer(Math.max(1000, Math.round(parseNumber(event.target.value, maxTrailPointsPerLayer))))
-              }
+              onChange={onNumberChange('maxTrailPointsPerLayer', maxTrailPointsPerLayer, { min: 1000, integer: true })}
             />
           </div>
           <div className="field">
@@ -318,7 +291,7 @@ export function GlobalControls({
               max="8"
               step="1"
               value={maxAdaptiveStep}
-              onChange={(event) => setMaxAdaptiveStep(Math.max(1, Math.min(8, Math.round(parseNumber(event.target.value, maxAdaptiveStep)))))}
+              onChange={onNumberChange('maxAdaptiveStep', maxAdaptiveStep, { min: 1, max: 8, integer: true })}
               disabled={!adaptiveQuality}
             />
           </div>
@@ -335,7 +308,7 @@ export function GlobalControls({
               id="stroke-width-mode"
               title="Set how stroke width is computed along the path."
               value={strokeWidthMode}
-              onChange={(event) => setStrokeWidthMode(event.target.value as StrokeWidthMode)}
+              onChange={(event) => updateSetting('strokeWidthMode', event.target.value as StrokeWidthMode)}
             >
               <option value="fixed">Fixed Width</option>
               <option value="speed">Width by Speed</option>
@@ -351,7 +324,7 @@ export function GlobalControls({
               min="0.2"
               step="0.1"
               value={baseLineWidth}
-              onChange={(event) => setBaseLineWidth(Math.max(0.2, parseNumber(event.target.value, baseLineWidth)))}
+              onChange={onNumberChange('baseLineWidth', baseLineWidth, { min: 0.2 })}
             />
           </div>
           <div className="field">
@@ -363,7 +336,7 @@ export function GlobalControls({
               min="0"
               step="0.1"
               value={lineWidthBoost}
-              onChange={(event) => setLineWidthBoost(Math.max(0, parseNumber(event.target.value, lineWidthBoost)))}
+              onChange={onNumberChange('lineWidthBoost', lineWidthBoost, { min: 0 })}
             />
           </div>
           <div className="field checkbox-field">
@@ -373,7 +346,7 @@ export function GlobalControls({
               type="checkbox"
               title="Render paths as dashed lines."
               checked={dashedLines}
-              onChange={(event) => setDashedLines(event.target.checked)}
+              onChange={(event) => updateSetting('dashedLines', event.target.checked)}
             />
           </div>
           <div className="field">
@@ -385,7 +358,7 @@ export function GlobalControls({
               min="1"
               step="1"
               value={dashLength}
-              onChange={(event) => setDashLength(Math.max(1, parseNumber(event.target.value, dashLength)))}
+              onChange={onNumberChange('dashLength', dashLength, { min: 1 })}
               disabled={!dashedLines}
             />
           </div>
@@ -398,7 +371,7 @@ export function GlobalControls({
               min="0"
               step="1"
               value={dashGap}
-              onChange={(event) => setDashGap(Math.max(0, parseNumber(event.target.value, dashGap)))}
+              onChange={onNumberChange('dashGap', dashGap, { min: 0 })}
               disabled={!dashedLines}
             />
           </div>
@@ -411,7 +384,7 @@ export function GlobalControls({
               min="0"
               step="1"
               value={glowAmount}
-              onChange={(event) => setGlowAmount(Math.max(0, parseNumber(event.target.value, glowAmount)))}
+              onChange={onNumberChange('glowAmount', glowAmount, { min: 0 })}
             />
           </div>
         </div>

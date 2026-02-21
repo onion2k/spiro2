@@ -2,9 +2,11 @@ export function toLayerPresetData(layer) {
     return {
         exprX: layer.exprX,
         exprY: layer.exprY,
+        exprZ: layer.exprZ,
         R: layer.R,
         r: layer.r,
         d: layer.d,
+        zScale: layer.zScale,
         speed: layer.speed,
         uSpeed: layer.uSpeed,
         lineLifetime: layer.lineLifetime,
@@ -39,9 +41,11 @@ export function normalizeCustomPreset(input) {
         data: {
             exprX: data.exprX,
             exprY: data.exprY,
+            exprZ: typeof data.exprZ === 'string' ? data.exprZ : '0',
             R: Number.isFinite(data.R) ? Number(data.R) : 8,
             r: Number.isFinite(data.r) ? Number(data.r) : 3,
             d: Number.isFinite(data.d) ? Number(data.d) : 6,
+            zScale: Number.isFinite(data.zScale) ? Number(data.zScale) : 0.6,
             speed: Number.isFinite(data.speed) ? Number(data.speed) : 1.8,
             uSpeed: Number.isFinite(data.uSpeed) ? Number(data.uSpeed) : 0.4,
             lineLifetime: Number.isFinite(data.lineLifetime) ? Number(data.lineLifetime) : 8,
