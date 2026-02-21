@@ -6,10 +6,12 @@ import { LayerControls, type LayerControlsProps } from './LayerControls'
 
 type ControlPanelProps = {
   uiMinimized: boolean
+  uiMode: 'basic' | 'advanced'
   isPaused: boolean
   controlTab: 'layer' | 'global'
   activeLayerError: string
   setUiMinimized: (value: boolean | ((value: boolean) => boolean)) => void
+  setUiMode: (value: 'basic' | 'advanced') => void
   setIsPaused: (value: boolean | ((value: boolean) => boolean)) => void
   setControlTab: (value: 'layer' | 'global') => void
   onReset: () => void
@@ -19,10 +21,12 @@ type ControlPanelProps = {
 
 export function ControlPanel({
   uiMinimized,
+  uiMode,
   isPaused,
   controlTab,
   activeLayerError,
   setUiMinimized,
+  setUiMode,
   setIsPaused,
   setControlTab,
   onReset,
@@ -47,6 +51,24 @@ export function ControlPanel({
             onClick={() => setUiMinimized((value) => !value)}
           >
             {uiMinimized ? 'Expand UI' : 'Minimize UI'}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={uiMode === 'basic' ? 'default' : 'secondary'}
+            title="Show simplified controls."
+            onClick={() => setUiMode('basic')}
+          >
+            Basic
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={uiMode === 'advanced' ? 'default' : 'secondary'}
+            title="Show full controls."
+            onClick={() => setUiMode('advanced')}
+          >
+            Advanced
           </Button>
         </div>
 

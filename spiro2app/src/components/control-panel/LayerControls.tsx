@@ -3,6 +3,7 @@ import type { ColorMode, CustomPreset, LayerConfig, MultiLineMotionMode, Palette
 import { Button } from '@/components/ui/button'
 
 export type LayerControlsProps = {
+  uiMode: 'basic' | 'advanced'
   selectedPresetId: string
   customPresets: CustomPreset[]
   customPresetName: string
@@ -32,6 +33,7 @@ export type LayerControlsProps = {
 }
 
 export function LayerControls({
+  uiMode,
   selectedPresetId,
   customPresets,
   customPresetName,
@@ -62,8 +64,8 @@ export function LayerControls({
   return (
     <section className="control-group" aria-label="Layer Controls">
       <section className="panel-section">
-        <h3 className="panel-section-title">Presets And Layers</h3>
-        <p className="section-help">Choose a starting preset, manage saved custom presets, and control which layer you are editing.</p>
+        <h3 className="panel-section-title">Preset Library</h3>
+        <p className="section-help">Choose a starting preset and manage saved custom presets.</p>
 
         <div className="field field-span-2">
           <label htmlFor="preset">Preset</label>
@@ -90,27 +92,35 @@ export function LayerControls({
           </select>
         </div>
 
-        <div className="field-grid">
-          <div className="field field-span-2">
-            <label htmlFor="custom-preset-name">Custom Preset Name</label>
-            <input
-              id="custom-preset-name"
-              title="Name used when saving or renaming a custom preset."
-              value={customPresetName}
-              onChange={(event) => setCustomPresetName(event.target.value)}
-            />
-          </div>
-        </div>
+        {uiMode === 'advanced' ? (
+          <>
+            <div className="field-grid">
+              <div className="field field-span-2">
+                <label htmlFor="custom-preset-name">Custom Preset Name</label>
+                <input
+                  id="custom-preset-name"
+                  title="Name used when saving or renaming a custom preset."
+                  value={customPresetName}
+                  onChange={(event) => setCustomPresetName(event.target.value)}
+                />
+              </div>
+            </div>
 
-        <div className="action-row">
-          <Button type="button" size="sm" title="Save current layer settings as a new custom preset." onClick={saveNewCustomPreset}>Save New</Button>
-          <Button type="button" size="sm" title="Overwrite the selected custom preset with current settings." onClick={updateCurrentCustomPreset} disabled={!activeCustomPreset}>Update</Button>
-          <Button type="button" size="sm" title="Rename the selected custom preset." onClick={renameCurrentCustomPreset} disabled={!activeCustomPreset}>Rename</Button>
-          <Button type="button" size="sm" variant="destructive" title="Delete the selected custom preset permanently." onClick={deleteCurrentCustomPreset} disabled={!activeCustomPreset}>Delete</Button>
-          <Button type="button" size="sm" variant="secondary" title="Copy all custom presets as JSON." onClick={exportCustomPresets}>Export JSON</Button>
-          <Button type="button" size="sm" variant="secondary" title="Replace current custom presets from pasted JSON." onClick={importCustomPresets}>Import JSON</Button>
-        </div>
+            <div className="action-row">
+              <Button type="button" size="sm" title="Save current layer settings as a new custom preset." onClick={saveNewCustomPreset}>Save New</Button>
+              <Button type="button" size="sm" title="Overwrite the selected custom preset with current settings." onClick={updateCurrentCustomPreset} disabled={!activeCustomPreset}>Update</Button>
+              <Button type="button" size="sm" title="Rename the selected custom preset." onClick={renameCurrentCustomPreset} disabled={!activeCustomPreset}>Rename</Button>
+              <Button type="button" size="sm" variant="destructive" title="Delete the selected custom preset permanently." onClick={deleteCurrentCustomPreset} disabled={!activeCustomPreset}>Delete</Button>
+              <Button type="button" size="sm" variant="secondary" title="Copy all custom presets as JSON." onClick={exportCustomPresets}>Export JSON</Button>
+              <Button type="button" size="sm" variant="secondary" title="Replace current custom presets from pasted JSON." onClick={importCustomPresets}>Import JSON</Button>
+            </div>
+          </>
+        ) : null}
+      </section>
 
+      <section className="panel-section">
+        <h3 className="panel-section-title">Layer Stack</h3>
+        <p className="section-help">Select which layer you are editing and manage layer visibility and duplicates.</p>
         <div className="field-grid">
           <div className="field">
             <label htmlFor="layer-select">Layer</label>
@@ -150,7 +160,7 @@ export function LayerControls({
         </div>
       </section>
 
-      <section className="panel-section">
+      {uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Equations</h3>
         <p className="section-help">Define parametric formulas for x, y, and z. These formulas run continuously over time variables t and u.</p>
 
@@ -227,7 +237,7 @@ export function LayerControls({
           <Button type="button" size="sm" variant="secondary" title="Append a saw-wave term to the active equation." onClick={() => insertSnippet(' + 0.25 * saw(u)')}>+saw(u)</Button>
           <Button type="button" size="sm" variant="secondary" title="Append a pulse-wave term to the active equation." onClick={() => insertSnippet(' + pulse(u, 0.2)')}>+pulse</Button>
         </div>
-      </section>
+      </section> : null}
 
       <section className="panel-section">
         <h3 className="panel-section-title">Curve</h3>
@@ -275,69 +285,59 @@ export function LayerControls({
               onChange={(event) => updateActiveLayer({ speed: parseNumber(event.target.value, activeLayer?.speed ?? 0) })}
             />
           </div>
-          <div className="field">
-            <label htmlFor="u-speed">u Speed</label>
-            <input
-              id="u-speed"
-              type="number"
-              title="How fast parameter u advances."
-              step="0.05"
-              value={activeLayer?.uSpeed ?? 0}
-              onChange={(event) => updateActiveLayer({ uSpeed: parseNumber(event.target.value, activeLayer?.uSpeed ?? 0) })}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="z-scale">Z Scale</label>
-            <input
-              id="z-scale"
-              type="number"
-              title="Scales z(t,u) depth contribution for 3D renderers."
-              step="0.05"
-              value={activeLayer?.zScale ?? 0.6}
-              onChange={(event) => updateActiveLayer({ zScale: parseNumber(event.target.value, activeLayer?.zScale ?? 0.6) })}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="line-life">Lifetime (s)</label>
-            <input
-              id="line-life"
-              type="number"
-              title="Trail duration in seconds when Forever is disabled."
-              min="0.2"
-              step="0.2"
-              value={activeLayer?.lineLifetime ?? 0.2}
-              onChange={(event) =>
-                updateActiveLayer({
-                  lineLifetime: Math.max(0.2, parseNumber(event.target.value, activeLayer?.lineLifetime ?? 0.2)),
-                })
-              }
-              disabled={activeLayer?.lineForever ?? false}
-            />
-          </div>
-          <div className="field checkbox-field">
-            <label htmlFor="line-forever">Forever</label>
-            <input
-              id="line-forever"
-              type="checkbox"
-              title="Keep full trail instead of fading old segments."
-              checked={activeLayer?.lineForever ?? false}
-              onChange={(event) => updateActiveLayer({ lineForever: event.target.checked })}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="point-size">Point Size</label>
-            <input
-              id="point-size"
-              type="number"
-              title="Point radius used when Global Draw Mode is set to Points."
-              min="0.5"
-              step="0.1"
-              value={activeLayer?.pointSize ?? 0.5}
-              onChange={(event) =>
-                updateActiveLayer({ pointSize: Math.max(0.5, parseNumber(event.target.value, activeLayer?.pointSize ?? 0.5)) })
-              }
-            />
-          </div>
+          {uiMode === 'advanced' ? (
+            <>
+              <div className="field">
+                <label htmlFor="u-speed">u Speed</label>
+                <input
+                  id="u-speed"
+                  type="number"
+                  title="How fast parameter u advances."
+                  step="0.05"
+                  value={activeLayer?.uSpeed ?? 0}
+                  onChange={(event) => updateActiveLayer({ uSpeed: parseNumber(event.target.value, activeLayer?.uSpeed ?? 0) })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="z-scale">Z Scale</label>
+                <input
+                  id="z-scale"
+                  type="number"
+                  title="Scales z(t,u) depth contribution for 3D renderers."
+                  step="0.05"
+                  value={activeLayer?.zScale ?? 0.6}
+                  onChange={(event) => updateActiveLayer({ zScale: parseNumber(event.target.value, activeLayer?.zScale ?? 0.6) })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="line-life">Lifetime (s)</label>
+                <input
+                  id="line-life"
+                  type="number"
+                  title="Trail duration in seconds when Forever is disabled."
+                  min="0.2"
+                  step="0.2"
+                  value={activeLayer?.lineLifetime ?? 0.2}
+                  onChange={(event) =>
+                    updateActiveLayer({
+                      lineLifetime: Math.max(0.2, parseNumber(event.target.value, activeLayer?.lineLifetime ?? 0.2)),
+                    })
+                  }
+                  disabled={activeLayer?.lineForever ?? false}
+                />
+              </div>
+              <div className="field checkbox-field">
+                <label htmlFor="line-forever">Forever</label>
+                <input
+                  id="line-forever"
+                  type="checkbox"
+                  title="Keep full trail instead of fading old segments."
+                  checked={activeLayer?.lineForever ?? false}
+                  onChange={(event) => updateActiveLayer({ lineForever: event.target.checked })}
+                />
+              </div>
+            </>
+          ) : null}
           <div className="field">
             <label htmlFor="multi-line-count">Line Copies</label>
             <input
@@ -398,7 +398,7 @@ export function LayerControls({
         </div>
       </section>
 
-      <section className="panel-section">
+      {uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Color</h3>
         <p className="section-help">Set how color is computed for this layer, including palette-based and fixed-hue options.</p>
         <div className="field-grid">
@@ -457,7 +457,7 @@ export function LayerControls({
             />
           </div>
         </div>
-      </section>
+      </section> : null}
     </section>
   )
 }

@@ -3,9 +3,14 @@ import type { ChangeEvent } from 'react'
 import type { NoiseMode, StrokeWidthMode } from '@/spiro/types'
 import type { GlobalSettings } from '@/spiro/renderers/defaults'
 import type { LineMaterialPresetId, ThreeCameraMode, ThreeLineRenderMode } from '@/spiro/renderers/types'
+import { MATERIAL_PRESETS } from '@/spiro/renderers/materialPresets'
+import { STYLE_PRESETS } from '@/spiro/stylePresets'
 
 export type GlobalControlsProps = {
+  uiMode: 'basic' | 'advanced'
   settings: GlobalSettings
+  selectedStylePresetId: string
+  onStylePresetSelect: (presetId: string) => void
   updateSetting: <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => void
   parseNumber: (value: string, fallback: number) => number
 }
@@ -20,72 +25,7 @@ type NumericBounds = {
   integer?: boolean
 }
 
-type MaterialPresetValues = Pick<
-  GlobalSettings,
-  | 'lineMaterialColor'
-  | 'lineMaterialMetalness'
-  | 'lineMaterialRoughness'
-  | 'lineMaterialClearcoat'
-  | 'lineMaterialClearcoatRoughness'
-  | 'lineMaterialTransmission'
-  | 'lineMaterialThickness'
-  | 'lineMaterialIor'
->
-
-const MATERIAL_PRESETS: Record<Exclude<LineMaterialPresetId, 'custom'>, MaterialPresetValues> = {
-  'matte-ribbon': {
-    lineMaterialColor: '#f1f1f1',
-    lineMaterialMetalness: 0.02,
-    lineMaterialRoughness: 0.9,
-    lineMaterialClearcoat: 0.02,
-    lineMaterialClearcoatRoughness: 0.75,
-    lineMaterialTransmission: 0,
-    lineMaterialThickness: 0.3,
-    lineMaterialIor: 1.32,
-  },
-  'satin-plastic': {
-    lineMaterialColor: '#f7f4ee',
-    lineMaterialMetalness: 0,
-    lineMaterialRoughness: 0.35,
-    lineMaterialClearcoat: 0.32,
-    lineMaterialClearcoatRoughness: 0.28,
-    lineMaterialTransmission: 0,
-    lineMaterialThickness: 0.6,
-    lineMaterialIor: 1.46,
-  },
-  'brushed-metal': {
-    lineMaterialColor: '#c9d0da',
-    lineMaterialMetalness: 0.88,
-    lineMaterialRoughness: 0.48,
-    lineMaterialClearcoat: 0.08,
-    lineMaterialClearcoatRoughness: 0.45,
-    lineMaterialTransmission: 0,
-    lineMaterialThickness: 0.5,
-    lineMaterialIor: 1.55,
-  },
-  chrome: {
-    lineMaterialColor: '#ffffff',
-    lineMaterialMetalness: 1,
-    lineMaterialRoughness: 0.08,
-    lineMaterialClearcoat: 0.24,
-    lineMaterialClearcoatRoughness: 0.08,
-    lineMaterialTransmission: 0,
-    lineMaterialThickness: 0.5,
-    lineMaterialIor: 1.6,
-  },
-  'frosted-glass': {
-    lineMaterialColor: '#e9f6ff',
-    lineMaterialMetalness: 0,
-    lineMaterialRoughness: 0.22,
-    lineMaterialClearcoat: 0.18,
-    lineMaterialClearcoatRoughness: 0.3,
-    lineMaterialTransmission: 0.78,
-    lineMaterialThickness: 1.15,
-    lineMaterialIor: 1.5,
-  },
-}
-
-export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalControlsProps) {
+export function GlobalControls({ uiMode, settings, selectedStylePresetId, onStylePresetSelect, updateSetting, parseNumber }: GlobalControlsProps) {
   const {
     threeCameraMode,
     threeLineRenderMode,
@@ -175,8 +115,30 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
   return (
     <section className="control-group" aria-label="Global Controls">
       <section className="panel-section">
+        <h3 className="panel-section-title">Style</h3>
+        <p className="section-help">Apply a bundled style that updates line copies, motion behavior, and color direction.</p>
+        <div className="field-grid">
+          <div className="field field-span-2">
+            <label htmlFor="style-preset">Style Preset</label>
+            <select
+              id="style-preset"
+              title="Apply a bundled style for line copies, motion, and colors across all layers."
+              value={selectedStylePresetId}
+              onChange={(event) => onStylePresetSelect(event.target.value)}
+            >
+              {STYLE_PRESETS.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel-section">
         <h3 className="panel-section-title">Renderer</h3>
-        <p className="section-help">Configure three.js camera projection and line rendering mode.</p>
+        <p className="section-help">Configure three.js camera projection and line rendering backend.</p>
         <div className="field-grid">
           <div className="field">
             <label htmlFor="three-camera-mode">three.js Camera</label>
@@ -190,74 +152,78 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
               <option value="perspective">Perspective</option>
             </select>
           </div>
-          <div className="field">
-            <label htmlFor="three-line-render-mode">three.js Line Mode</label>
-            <select
-              id="three-line-render-mode"
-              title="Choose how line mode is rendered in three.js."
-              value={threeLineRenderMode}
-              onChange={(event) => updateSetting('threeLineRenderMode', event.target.value as ThreeLineRenderMode)}
-            >
-              <option value="fat-lines">Fat Lines</option>
-              <option value="instanced-sprites">Instanced Point Sprites</option>
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="three-sprite-size">Sprite Size</label>
-            <input
-              id="three-sprite-size"
-              type="number"
-              title="Scale multiplier for instanced sprite quads."
-              min="0.2"
-              max="4"
-              step="0.1"
-              value={threeSpriteSize}
-              onChange={onNumberChange('threeSpriteSize', threeSpriteSize, { min: 0.2, max: 4 })}
-              disabled={threeLineRenderMode !== 'instanced-sprites'}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="three-sprite-softness">Sprite Softness</label>
-            <input
-              id="three-sprite-softness"
-              type="number"
-              title="Controls edge falloff softness for instanced sprites."
-              min="0"
-              max="1"
-              step="0.05"
-              value={threeSpriteSoftness}
-              onChange={onNumberChange('threeSpriteSoftness', threeSpriteSoftness, { min: 0, max: 1 })}
-              disabled={threeLineRenderMode !== 'instanced-sprites'}
-            />
-          </div>
-          <div className="field checkbox-field">
-            <label htmlFor="auto-rotate-scene">Auto Rotate Scene</label>
-            <input
-              id="auto-rotate-scene"
-              type="checkbox"
-              title="Automatically orbit the camera around the scene."
-              checked={autoRotateScene}
-              onChange={(event) => updateSetting('autoRotateScene', event.target.checked)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="auto-rotate-speed">Auto Rotate Speed</label>
-            <input
-              id="auto-rotate-speed"
-              type="number"
-              title="OrbitControls auto-rotation speed."
-              min="-10"
-              max="10"
-              step="0.1"
-              value={autoRotateSpeed}
-              onChange={onNumberChange('autoRotateSpeed', autoRotateSpeed, { min: -10, max: 10 })}
-              disabled={!autoRotateScene}
-            />
-          </div>
+          {uiMode === 'advanced' ? (
+            <>
+              <div className="field">
+                <label htmlFor="three-line-render-mode">three.js Line Mode</label>
+                <select
+                  id="three-line-render-mode"
+                  title="Choose how line mode is rendered in three.js."
+                  value={threeLineRenderMode}
+                  onChange={(event) => updateSetting('threeLineRenderMode', event.target.value as ThreeLineRenderMode)}
+                >
+                  <option value="fat-lines">Fat Lines</option>
+                  <option value="instanced-sprites">Instanced Point Sprites</option>
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="three-sprite-size">Sprite Size</label>
+                <input
+                  id="three-sprite-size"
+                  type="number"
+                  title="Scale multiplier for instanced sprite quads."
+                  min="0.2"
+                  max="4"
+                  step="0.1"
+                  value={threeSpriteSize}
+                  onChange={onNumberChange('threeSpriteSize', threeSpriteSize, { min: 0.2, max: 4 })}
+                  disabled={threeLineRenderMode !== 'instanced-sprites'}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="three-sprite-softness">Sprite Softness</label>
+                <input
+                  id="three-sprite-softness"
+                  type="number"
+                  title="Controls edge falloff softness for instanced sprites."
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={threeSpriteSoftness}
+                  onChange={onNumberChange('threeSpriteSoftness', threeSpriteSoftness, { min: 0, max: 1 })}
+                  disabled={threeLineRenderMode !== 'instanced-sprites'}
+                />
+              </div>
+              <div className="field checkbox-field">
+                <label htmlFor="auto-rotate-scene">Auto Rotate Scene</label>
+                <input
+                  id="auto-rotate-scene"
+                  type="checkbox"
+                  title="Automatically orbit the camera around the scene."
+                  checked={autoRotateScene}
+                  onChange={(event) => updateSetting('autoRotateScene', event.target.checked)}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="auto-rotate-speed">Auto Rotate Speed</label>
+                <input
+                  id="auto-rotate-speed"
+                  type="number"
+                  title="OrbitControls auto-rotation speed."
+                  min="-10"
+                  max="10"
+                  step="0.1"
+                  value={autoRotateSpeed}
+                  onChange={onNumberChange('autoRotateSpeed', autoRotateSpeed, { min: -10, max: 10 })}
+                  disabled={!autoRotateScene}
+                />
+              </div>
+            </>
+          ) : null}
         </div>
       </section>
 
-      <section className="panel-section">
+      {uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Symmetry</h3>
         <p className="section-help">Apply mirror and rotational symmetry to all active layers.</p>
         <div className="field-grid">
@@ -294,9 +260,9 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
             <input id="mirror-y" type="checkbox" title="Mirror output across the Y axis." checked={mirrorY} onChange={(event) => updateSetting('mirrorY', event.target.checked)} />
           </div>
         </div>
-      </section>
+      </section> : null}
 
-      <section className="panel-section">
+      {uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Noise And Modulation</h3>
         <p className="section-help">Animate variation in phase, frequency, amplitude, and procedural noise for organic motion.</p>
         <div className="field-grid">
@@ -407,9 +373,9 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
             />
           </div>
         </div>
-      </section>
+      </section> : null}
 
-      <section className="panel-section">
+      {uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Performance</h3>
         <p className="section-help">Balance smoothness and frame rate by constraining trail size and adaptive stepping.</p>
         <div className="field-grid">
@@ -450,11 +416,11 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
             />
           </div>
         </div>
-      </section>
+      </section> : null}
 
-      <section className="panel-section">
-        <h3 className="panel-section-title">Stroke</h3>
-        <p className="section-help">Configure line thickness behavior, dash style, and material rendering.</p>
+      {uiMode === 'advanced' ? <section className="panel-section">
+        <h3 className="panel-section-title">Stroke Geometry</h3>
+        <p className="section-help">Configure line thickness behavior and dash patterns.</p>
         <div className="field-grid">
           <div className="field">
             <label htmlFor="stroke-width-mode">Stroke Width Mode</label>
@@ -529,6 +495,13 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
               disabled={!dashedLines}
             />
           </div>
+        </div>
+      </section> : null}
+
+      {uiMode === 'advanced' ? <section className="panel-section">
+        <h3 className="panel-section-title">Line Material</h3>
+        <p className="section-help">Configure physical material properties for fat-line rendering.</p>
+        <div className="field-grid">
           <div className="field">
             <label htmlFor="line-material-preset">Material Preset</label>
             <select
@@ -668,7 +641,7 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
             />
           </div>
         </div>
-      </section>
+      </section> : null}
     </section>
   )
 }

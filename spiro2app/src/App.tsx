@@ -6,6 +6,7 @@ import { compileParametric } from './spiro/equation'
 import { buildRendererConfig } from './spiro/renderers/config'
 import { DEFAULT_GLOBAL_SETTINGS } from './spiro/renderers/defaults'
 import type { GlobalSettings } from './spiro/renderers/defaults'
+import { STYLE_PRESETS } from './spiro/stylePresets'
 import {
   createLayerFromPreset,
   CUSTOM_PRESET_STORAGE_KEY,
@@ -21,6 +22,7 @@ import type {
 } from './spiro/types'
 
 const ThreeSurface = lazy(() => import('./spiro/renderers/ThreeSurface'))
+const UI_MODE_STORAGE_KEY = 'spiro2.ui-mode'
 
 function App() {
   const layerCounterRef = useRef(2)
@@ -48,13 +50,32 @@ function App() {
   const [equationExampleId, setEquationExampleId] = useState('')
   const [activeEquation, setActiveEquation] = useState<'x' | 'y' | 'z'>('x')
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>(() => ({ ...DEFAULT_GLOBAL_SETTINGS }))
+  const [selectedStylePresetId, setSelectedStylePresetId] = useState(STYLE_PRESETS[0].id)
 
   const [isPaused, setIsPaused] = useState(false)
   const [resetTick, setResetTick] = useState(0)
   const [uiMinimized, setUiMinimized] = useState(false)
+  const [uiMode, setUiMode] = useState<'basic' | 'advanced'>(() => {
+    if (typeof window === 'undefined') {
+      return 'basic'
+    }
+    const stored = window.localStorage.getItem(UI_MODE_STORAGE_KEY)
+    return stored === 'advanced' ? 'advanced' : 'basic'
+  })
   const [controlTab, setControlTab] = useState<'layer' | 'global'>('layer')
   const updateGlobalSetting = <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => {
     setGlobalSettings((current) => ({ ...current, [key]: value }))
+  }
+
+  const applyStylePreset = (presetId: string) => {
+    const preset = STYLE_PRESETS.find((entry) => entry.id === presetId)
+    if (!preset) {
+      return
+    }
+    setSelectedStylePresetId(preset.id)
+    setGlobalSettings((current) => ({ ...current, ...preset.global }))
+    setLayers((current) => current.map((layer) => ({ ...layer, ...preset.layer })))
+    setResetTick((value) => value + 1)
   }
 
   const activeLayer = useMemo(
@@ -213,6 +234,13 @@ function App() {
       setCustomPresetName(activeCustomPreset.name)
     }
   }, [activeCustomPreset])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    window.localStorage.setItem(UI_MODE_STORAGE_KEY, uiMode)
+  }, [uiMode])
   const updateActiveLayer = (patch: Partial<LayerConfig>) => {
     setLayers((existing) => existing.map((layer) => (layer.id === activeLayerId ? { ...layer, ...patch } : layer)))
   }
@@ -334,14 +362,17 @@ function App() {
       </Suspense>
       <ControlPanel
         uiMinimized={uiMinimized}
+        uiMode={uiMode}
         isPaused={isPaused}
         controlTab={controlTab}
         activeLayerError={activeLayerError}
         setUiMinimized={setUiMinimized}
+        setUiMode={setUiMode}
         setIsPaused={setIsPaused}
         setControlTab={setControlTab}
         onReset={() => setResetTick((value) => value + 1)}
         layerProps={{
+          uiMode,
           selectedPresetId,
           customPresets,
           customPresetName,
@@ -370,7 +401,10 @@ function App() {
           parseNumber,
         }}
         globalProps={{
+          uiMode,
           settings: globalSettings,
+          selectedStylePresetId,
+          onStylePresetSelect: applyStylePreset,
           updateSetting: updateGlobalSetting,
           parseNumber,
         }}
