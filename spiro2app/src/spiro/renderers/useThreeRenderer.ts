@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import type { RefObject } from 'react'
 import { Group, PlaneGeometry, Scene, WebGLRenderer } from 'three'
 
-import type { SpiroRendererConfig } from './types'
+import type { RendererHudStats, SpiroRendererConfig } from './types'
 import { createRuntimeState, stepRuntime } from './runtime'
 import { createThreeCamera, resizeThreeCamera } from './three/camera'
 import { renderPoints } from './three/renderPoints'
@@ -11,6 +11,7 @@ import { clearGroup, createGlowSpriteTexture } from './three/resources'
 type ThreeRendererOptions = SpiroRendererConfig & {
   containerRef: RefObject<HTMLDivElement | null>
   enabled: boolean
+  onHudStats?: (stats: RendererHudStats) => void
 }
 
 export function useThreeRenderer(options: ThreeRendererOptions) {
@@ -45,6 +46,7 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     maxTrailPointsPerLayer,
     adaptiveQuality,
     maxAdaptiveStep,
+    onHudStats,
   } = options
 
   useEffect(() => {
@@ -109,6 +111,8 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
       let animationFrame = 0
       let lastWidth = 0
       let lastHeight = 0
+      let lastFrameMs = 0
+      let nextHudUpdateMs = 0
 
       const resize = () => {
         const width = Math.max(1, container.clientWidth)
@@ -126,6 +130,8 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
       }
 
       const draw = (timeMs: number) => {
+        const frameMs = lastFrameMs > 0 ? Math.max(1, timeMs - lastFrameMs) : 16.67
+        lastFrameMs = timeMs
         const width = Math.max(1, container.clientWidth)
         const height = Math.max(1, container.clientHeight)
         if (width !== lastWidth || height !== lastHeight) {
@@ -157,12 +163,17 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
         })
 
         clearGroup(drawGroup)
+        let trailPoints = 0
+        let pointVertices = 0
+        let instancedSprites = 0
+        let lineObjects = 0
 
         for (const runtimeLayer of runtime.runtimeLayers) {
           const layer = runtimeLayer.layer
           if (!layer.visible || runtimeLayer.trail.length === 0) {
             continue
           }
+          trailPoints += runtimeLayer.trail.length
           const step = runtimeLayer.trail.length > 3000 ? Math.ceil(runtimeLayer.trail.length / 3000) : 1
           const shouldDrawLines = layer.drawMode === 'lines' || layer.drawMode === 'lines-points'
           const shouldDrawPoints = layer.drawMode === 'points' || layer.drawMode === 'lines-points'
@@ -189,6 +200,8 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
                 dashGap,
               })
               if (sprites) {
+                instancedSprites += sprites.count
+                lineObjects += 1
                 drawGroup.add(sprites)
               }
             } else if (threeLineRenderMode === 'fat-lines' && renderFatLinesFn) {
@@ -210,6 +223,7 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
                 dashLength,
                 dashGap,
               })
+              lineObjects += fatLines.length
               for (const line of fatLines) {
                 drawGroup.add(line)
               }
@@ -228,6 +242,7 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
               rotationOffsetDeg,
             })
             if (points) {
+              pointVertices += points.geometry.getAttribute('position').count
               drawGroup.add(points)
             }
           }
@@ -235,6 +250,23 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
 
         controls.update()
         renderer.render(scene, camera)
+
+        if (onHudStats && timeMs >= nextHudUpdateMs) {
+          onHudStats({
+            fps: 1000 / frameMs,
+            frameMs,
+            drawCalls: renderer.info.render.calls,
+            renderedObjects: drawGroup.children.length,
+            trailPoints,
+            pointVertices,
+            instancedSprites,
+            lineObjects,
+            threeCameraMode,
+            threeLineRenderMode,
+          })
+          nextHudUpdateMs = timeMs + 250
+        }
+
         animationFrame = requestAnimationFrame(draw)
       }
 
@@ -291,5 +323,6 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     maxTrailPointsPerLayer,
     adaptiveQuality,
     maxAdaptiveStep,
+    onHudStats,
   ])
 }

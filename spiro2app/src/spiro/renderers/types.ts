@@ -39,3 +39,16 @@ export type SpiroRendererConfig = {
   adaptiveQuality: boolean
   maxAdaptiveStep: number
 }
+
+export type RendererHudStats = {
+  fps: number
+  frameMs: number
+  drawCalls: number
+  renderedObjects: number
+  trailPoints: number
+  pointVertices: number
+  instancedSprites: number
+  lineObjects: number
+  threeCameraMode: ThreeCameraMode
+  threeLineRenderMode: ThreeLineRenderMode
+}
