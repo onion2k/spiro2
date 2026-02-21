@@ -2,7 +2,7 @@ import type { ChangeEvent } from 'react'
 
 import type { NoiseMode, StrokeWidthMode } from '@/spiro/types'
 import type { GlobalSettings } from '@/spiro/renderers/defaults'
-import type { ThreeCameraMode, ThreeLineRenderMode } from '@/spiro/renderers/types'
+import type { LineMaterialPresetId, ThreeCameraMode, ThreeLineRenderMode } from '@/spiro/renderers/types'
 
 export type GlobalControlsProps = {
   settings: GlobalSettings
@@ -18,6 +18,71 @@ type NumericBounds = {
   min?: number
   max?: number
   integer?: boolean
+}
+
+type MaterialPresetValues = Pick<
+  GlobalSettings,
+  | 'lineMaterialColor'
+  | 'lineMaterialMetalness'
+  | 'lineMaterialRoughness'
+  | 'lineMaterialClearcoat'
+  | 'lineMaterialClearcoatRoughness'
+  | 'lineMaterialTransmission'
+  | 'lineMaterialThickness'
+  | 'lineMaterialIor'
+>
+
+const MATERIAL_PRESETS: Record<Exclude<LineMaterialPresetId, 'custom'>, MaterialPresetValues> = {
+  'matte-ribbon': {
+    lineMaterialColor: '#f1f1f1',
+    lineMaterialMetalness: 0.02,
+    lineMaterialRoughness: 0.9,
+    lineMaterialClearcoat: 0.02,
+    lineMaterialClearcoatRoughness: 0.75,
+    lineMaterialTransmission: 0,
+    lineMaterialThickness: 0.3,
+    lineMaterialIor: 1.32,
+  },
+  'satin-plastic': {
+    lineMaterialColor: '#f7f4ee',
+    lineMaterialMetalness: 0,
+    lineMaterialRoughness: 0.35,
+    lineMaterialClearcoat: 0.32,
+    lineMaterialClearcoatRoughness: 0.28,
+    lineMaterialTransmission: 0,
+    lineMaterialThickness: 0.6,
+    lineMaterialIor: 1.46,
+  },
+  'brushed-metal': {
+    lineMaterialColor: '#c9d0da',
+    lineMaterialMetalness: 0.88,
+    lineMaterialRoughness: 0.48,
+    lineMaterialClearcoat: 0.08,
+    lineMaterialClearcoatRoughness: 0.45,
+    lineMaterialTransmission: 0,
+    lineMaterialThickness: 0.5,
+    lineMaterialIor: 1.55,
+  },
+  chrome: {
+    lineMaterialColor: '#ffffff',
+    lineMaterialMetalness: 1,
+    lineMaterialRoughness: 0.08,
+    lineMaterialClearcoat: 0.24,
+    lineMaterialClearcoatRoughness: 0.08,
+    lineMaterialTransmission: 0,
+    lineMaterialThickness: 0.5,
+    lineMaterialIor: 1.6,
+  },
+  'frosted-glass': {
+    lineMaterialColor: '#e9f6ff',
+    lineMaterialMetalness: 0,
+    lineMaterialRoughness: 0.22,
+    lineMaterialClearcoat: 0.18,
+    lineMaterialClearcoatRoughness: 0.3,
+    lineMaterialTransmission: 0.78,
+    lineMaterialThickness: 1.15,
+    lineMaterialIor: 1.5,
+  },
 }
 
 export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalControlsProps) {
@@ -49,6 +114,17 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
     glowAmount,
     threeSpriteSize,
     threeSpriteSoftness,
+    autoRotateScene,
+    autoRotateSpeed,
+    lineMaterialPreset,
+    lineMaterialColor,
+    lineMaterialMetalness,
+    lineMaterialRoughness,
+    lineMaterialClearcoat,
+    lineMaterialClearcoatRoughness,
+    lineMaterialTransmission,
+    lineMaterialThickness,
+    lineMaterialIor,
   } = settings
 
   const parseBoundedNumber = (value: string, fallback: number, bounds: NumericBounds = {}) => {
@@ -71,6 +147,31 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
     (event: ChangeEvent<HTMLInputElement>) => {
       updateSetting(key, parseBoundedNumber(event.target.value, fallback, bounds) as GlobalSettings[K])
     }
+
+  const applyMaterialPreset = (presetId: Exclude<LineMaterialPresetId, 'custom'>) => {
+    const preset = MATERIAL_PRESETS[presetId]
+    updateSetting('lineMaterialPreset', presetId)
+    updateSetting('lineMaterialColor', preset.lineMaterialColor)
+    updateSetting('lineMaterialMetalness', preset.lineMaterialMetalness)
+    updateSetting('lineMaterialRoughness', preset.lineMaterialRoughness)
+    updateSetting('lineMaterialClearcoat', preset.lineMaterialClearcoat)
+    updateSetting('lineMaterialClearcoatRoughness', preset.lineMaterialClearcoatRoughness)
+    updateSetting('lineMaterialTransmission', preset.lineMaterialTransmission)
+    updateSetting('lineMaterialThickness', preset.lineMaterialThickness)
+    updateSetting('lineMaterialIor', preset.lineMaterialIor)
+  }
+
+  const onMaterialNumberChange =
+    <K extends NumericSettingKey>(key: K, fallback: number, bounds?: NumericBounds) =>
+    (event: ChangeEvent<HTMLInputElement>) => {
+      updateSetting('lineMaterialPreset', 'custom')
+      updateSetting(key, parseBoundedNumber(event.target.value, fallback, bounds) as GlobalSettings[K])
+    }
+
+  const onMaterialColorChange = (event: ChangeEvent<HTMLInputElement>) => {
+    updateSetting('lineMaterialPreset', 'custom')
+    updateSetting('lineMaterialColor', event.target.value)
+  }
 
   return (
     <section className="control-group" aria-label="Global Controls">
@@ -128,6 +229,30 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
               value={threeSpriteSoftness}
               onChange={onNumberChange('threeSpriteSoftness', threeSpriteSoftness, { min: 0, max: 1 })}
               disabled={threeLineRenderMode !== 'instanced-sprites'}
+            />
+          </div>
+          <div className="field checkbox-field">
+            <label htmlFor="auto-rotate-scene">Auto Rotate Scene</label>
+            <input
+              id="auto-rotate-scene"
+              type="checkbox"
+              title="Automatically orbit the camera around the scene."
+              checked={autoRotateScene}
+              onChange={(event) => updateSetting('autoRotateScene', event.target.checked)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="auto-rotate-speed">Auto Rotate Speed</label>
+            <input
+              id="auto-rotate-speed"
+              type="number"
+              title="OrbitControls auto-rotation speed."
+              min="-10"
+              max="10"
+              step="0.1"
+              value={autoRotateSpeed}
+              onChange={onNumberChange('autoRotateSpeed', autoRotateSpeed, { min: -10, max: 10 })}
+              disabled={!autoRotateScene}
             />
           </div>
         </div>
@@ -415,6 +540,144 @@ export function GlobalControls({ settings, updateSetting, parseNumber }: GlobalC
               step="1"
               value={glowAmount}
               onChange={onNumberChange('glowAmount', glowAmount, { min: 0 })}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-preset">Material Preset</label>
+            <select
+              id="line-material-preset"
+              title="Apply a bundled physical material setup for ribbon lines."
+              value={lineMaterialPreset}
+              onChange={(event) => {
+                const presetId = event.target.value as LineMaterialPresetId
+                if (presetId === 'custom') {
+                  updateSetting('lineMaterialPreset', 'custom')
+                } else {
+                  applyMaterialPreset(presetId)
+                }
+              }}
+              disabled={threeLineRenderMode !== 'fat-lines'}
+            >
+              <option value="matte-ribbon">Matte Ribbon</option>
+              <option value="satin-plastic">Satin Plastic</option>
+              <option value="brushed-metal">Brushed Metal</option>
+              <option value="chrome">Chrome</option>
+              <option value="frosted-glass">Frosted Glass</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-color">Line Color</label>
+            <input
+              id="line-material-color"
+              type="color"
+              title="Base tint for ribbon material (multiplies with animated vertex color)."
+              value={lineMaterialColor}
+              onChange={onMaterialColorChange}
+              disabled={threeLineRenderMode !== 'fat-lines'}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-metalness">Line Metalness</label>
+            <input
+              id="line-material-metalness"
+              type="number"
+              title="Physical material metalness for ribbon lines."
+              min="0"
+              max="1"
+              step="0.05"
+              value={lineMaterialMetalness}
+              onChange={onMaterialNumberChange('lineMaterialMetalness', lineMaterialMetalness, { min: 0, max: 1 })}
+              disabled={threeLineRenderMode !== 'fat-lines'}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-roughness">Line Roughness</label>
+            <input
+              id="line-material-roughness"
+              type="number"
+              title="Physical material roughness for ribbon lines."
+              min="0"
+              max="1"
+              step="0.05"
+              value={lineMaterialRoughness}
+              onChange={onMaterialNumberChange('lineMaterialRoughness', lineMaterialRoughness, { min: 0, max: 1 })}
+              disabled={threeLineRenderMode !== 'fat-lines'}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-clearcoat">Line Clearcoat</label>
+            <input
+              id="line-material-clearcoat"
+              type="number"
+              title="Additional clearcoat layer intensity for ribbon material."
+              min="0"
+              max="1"
+              step="0.05"
+              value={lineMaterialClearcoat}
+              onChange={onMaterialNumberChange('lineMaterialClearcoat', lineMaterialClearcoat, { min: 0, max: 1 })}
+              disabled={threeLineRenderMode !== 'fat-lines'}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-clearcoat-roughness">Clearcoat Roughness</label>
+            <input
+              id="line-material-clearcoat-roughness"
+              type="number"
+              title="Roughness of the ribbon clearcoat layer."
+              min="0"
+              max="1"
+              step="0.05"
+              value={lineMaterialClearcoatRoughness}
+              onChange={onMaterialNumberChange('lineMaterialClearcoatRoughness', lineMaterialClearcoatRoughness, {
+                min: 0,
+                max: 1,
+              })}
+              disabled={threeLineRenderMode !== 'fat-lines'}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-transmission">Line Transmission</label>
+            <input
+              id="line-material-transmission"
+              type="number"
+              title="Transparency transmission for ribbon material."
+              min="0"
+              max="1"
+              step="0.05"
+              value={lineMaterialTransmission}
+              onChange={onMaterialNumberChange('lineMaterialTransmission', lineMaterialTransmission, {
+                min: 0,
+                max: 1,
+              })}
+              disabled={threeLineRenderMode !== 'fat-lines'}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-thickness">Line Thickness</label>
+            <input
+              id="line-material-thickness"
+              type="number"
+              title="Optical thickness used by physical transmission."
+              min="0"
+              step="0.05"
+              value={lineMaterialThickness}
+              onChange={onMaterialNumberChange('lineMaterialThickness', lineMaterialThickness, { min: 0 })}
+              disabled={threeLineRenderMode !== 'fat-lines'}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-ior">Line IOR</label>
+            <input
+              id="line-material-ior"
+              type="number"
+              title="Index of refraction for ribbon material."
+              min="1"
+              max="2.333"
+              step="0.01"
+              value={lineMaterialIor}
+              onChange={onMaterialNumberChange('lineMaterialIor', lineMaterialIor, { min: 1, max: 2.333 })}
+              disabled={threeLineRenderMode !== 'fat-lines'}
             />
           </div>
         </div>

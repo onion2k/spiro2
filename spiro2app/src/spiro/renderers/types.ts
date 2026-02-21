@@ -2,6 +2,7 @@ import type { LayerConfig, NoiseMode, StrokeWidthMode } from '../types'
 
 export type ThreeCameraMode = 'orthographic' | 'perspective'
 export type ThreeLineRenderMode = 'fat-lines' | 'instanced-sprites'
+export type LineMaterialPresetId = 'matte-ribbon' | 'satin-plastic' | 'brushed-metal' | 'chrome' | 'frosted-glass' | 'custom'
 
 export type CompiledLayer = {
   id: string
@@ -35,6 +36,17 @@ export type SpiroRendererConfig = {
   glowAmount: number
   threeSpriteSize: number
   threeSpriteSoftness: number
+  autoRotateScene: boolean
+  autoRotateSpeed: number
+  lineMaterialPreset: LineMaterialPresetId
+  lineMaterialColor: string
+  lineMaterialMetalness: number
+  lineMaterialRoughness: number
+  lineMaterialClearcoat: number
+  lineMaterialClearcoatRoughness: number
+  lineMaterialTransmission: number
+  lineMaterialThickness: number
+  lineMaterialIor: number
   threeCameraMode: ThreeCameraMode
   threeLineRenderMode: ThreeLineRenderMode
   maxTrailPointsPerLayer: number

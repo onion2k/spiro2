@@ -1,6 +1,17 @@
 import { useEffect } from 'react'
 import type { RefObject } from 'react'
-import { Group, PlaneGeometry, Scene, WebGLRenderer } from 'three'
+import {
+  ACESFilmicToneMapping,
+  AmbientLight,
+  DirectionalLight,
+  Group,
+  HemisphereLight,
+  PMREMGenerator,
+  PlaneGeometry,
+  Scene,
+  WebGLRenderer,
+} from 'three'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
 import type { RendererHudStats, SpiroRendererConfig } from './types'
 import { createRuntimeState, stepRuntime } from './runtime'
@@ -45,6 +56,16 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     threeLineRenderMode,
     threeSpriteSize,
     threeSpriteSoftness,
+    autoRotateScene,
+    autoRotateSpeed,
+    lineMaterialColor,
+    lineMaterialMetalness,
+    lineMaterialRoughness,
+    lineMaterialClearcoat,
+    lineMaterialClearcoatRoughness,
+    lineMaterialTransmission,
+    lineMaterialThickness,
+    lineMaterialIor,
     maxTrailPointsPerLayer,
     adaptiveQuality,
     maxAdaptiveStep,
@@ -91,9 +112,23 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
       const renderer = new WebGLRenderer({ antialias: true })
       renderer.setClearColor(0x020617, 1)
       renderer.setPixelRatio(window.devicePixelRatio || 1)
+      renderer.toneMapping = ACESFilmicToneMapping
+      renderer.toneMappingExposure = 1.2
       container.appendChild(renderer.domElement)
 
       const scene = new Scene()
+      const pmremGenerator = new PMREMGenerator(renderer)
+      const environmentMap = pmremGenerator.fromScene(new RoomEnvironment(), 0.08).texture
+      scene.environment = environmentMap
+      const ambientLight = new AmbientLight(0xffffff, 0.72)
+      const skyFill = new HemisphereLight(0xd6e6ff, 0x111827, 0.55)
+      const keyLight = new DirectionalLight(0xffffff, 2.2)
+      keyLight.position.set(2200, 2400, 2800)
+      const fillLight = new DirectionalLight(0xaec8ff, 1.1)
+      fillLight.position.set(-1900, -1400, 2100)
+      const rimLight = new DirectionalLight(0xfff1da, 0.75)
+      rimLight.position.set(0, 1800, -2400)
+      scene.add(ambientLight, skyFill, keyLight, fillLight, rimLight)
       const drawGroup = new Group()
       scene.add(drawGroup)
 
@@ -107,6 +142,8 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
       controls.enableZoom = true
       controls.enableRotate = true
       controls.screenSpacePanning = true
+      controls.autoRotate = autoRotateScene
+      controls.autoRotateSpeed = autoRotateSpeed
 
       let userInteracted = false
       controls.addEventListener('start', () => {
@@ -241,6 +278,14 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
                 dashedLines,
                 dashLength,
                 dashGap,
+                lineMaterialColor,
+                lineMaterialMetalness,
+                lineMaterialRoughness,
+                lineMaterialClearcoat,
+                lineMaterialClearcoatRoughness,
+                lineMaterialTransmission,
+                lineMaterialThickness,
+                lineMaterialIor,
               })
               lineObjects += fatLines.length
               for (const line of fatLines) {
@@ -321,6 +366,8 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
         controls.dispose()
         spriteGeometry.dispose()
         spriteTexture.dispose()
+        environmentMap.dispose()
+        pmremGenerator.dispose()
         renderer.dispose()
         container.replaceChildren()
       }
@@ -362,6 +409,16 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     threeLineRenderMode,
     threeSpriteSize,
     threeSpriteSoftness,
+    autoRotateScene,
+    autoRotateSpeed,
+    lineMaterialColor,
+    lineMaterialMetalness,
+    lineMaterialRoughness,
+    lineMaterialClearcoat,
+    lineMaterialClearcoatRoughness,
+    lineMaterialTransmission,
+    lineMaterialThickness,
+    lineMaterialIor,
     maxTrailPointsPerLayer,
     adaptiveQuality,
     maxAdaptiveStep,

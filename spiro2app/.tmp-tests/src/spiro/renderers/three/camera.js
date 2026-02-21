@@ -10,8 +10,8 @@ export function resizeThreeCamera(options) {
         camera.right = width / 2;
         camera.top = height / 2;
         camera.bottom = -height / 2;
-        camera.near = 0.1;
-        camera.far = maxDimension * 20;
+        camera.near = Math.max(0.5, maxDimension * 0.002);
+        camera.far = maxDimension * 12;
         if (!userInteracted) {
             camera.position.set(0, 0, maxDimension * 1.25);
             setTarget(0, 0, 0);
@@ -19,8 +19,8 @@ export function resizeThreeCamera(options) {
     }
     else if (mode === 'perspective' && camera instanceof PerspectiveCamera) {
         camera.aspect = width / height;
-        camera.near = 0.1;
-        camera.far = maxDimension * 40;
+        camera.near = Math.max(0.5, maxDimension * 0.002);
+        camera.far = maxDimension * 18;
         if (!userInteracted) {
             camera.position.set(0, 0, maxDimension * 2.2);
             setTarget(0, 0, 0);
