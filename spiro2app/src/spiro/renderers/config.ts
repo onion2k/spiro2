@@ -1,6 +1,6 @@
 import type { SpiroRendererConfig } from './types'
 
-type RuntimeConfig = Pick<SpiroRendererConfig, 'layers' | 'compiledLayers' | 'isPaused' | 'resetTick'>
+type RuntimeConfig = Pick<SpiroRendererConfig, 'layers' | 'compiledLayers' | 'isPaused' | 'resetTick' | 'recenterTick'>
 type SettingsConfig = Omit<SpiroRendererConfig, keyof RuntimeConfig>
 
 type BuildRendererConfigInput = RuntimeConfig & {
@@ -8,12 +8,13 @@ type BuildRendererConfigInput = RuntimeConfig & {
 }
 
 export function buildRendererConfig(input: BuildRendererConfigInput): SpiroRendererConfig {
-  const { layers, compiledLayers, isPaused, resetTick, settings } = input
+  const { layers, compiledLayers, isPaused, resetTick, recenterTick, settings } = input
   return {
     layers,
     compiledLayers,
     isPaused,
     resetTick,
+    recenterTick,
     ...settings,
   }
 }

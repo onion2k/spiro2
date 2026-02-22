@@ -1,20 +1,24 @@
 import { EQUATION_EXAMPLES, PRESETS } from '@/spiro/constants'
 import type { ColorMode, CustomPreset, LayerConfig, MultiLineMotionMode, PaletteId } from '@/spiro/types'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
 
 export type LayerControlsProps = {
   uiMode: 'basic' | 'advanced'
+  curveScope?: 'all' | 'basic-only' | 'advanced-only'
+  showPresetLibrary?: boolean
+  presetMode?: 'full' | 'picker-only' | 'manage-only'
+  showNonPresetSections?: boolean
+  sectionScope?: 'all' | 'non-color' | 'color-only'
   selectedPresetId: string
   customPresets: CustomPreset[]
   customPresetName: string
   activeCustomPreset: CustomPreset | null
-  layers: LayerConfig[]
-  activeLayerId: string
   activeLayer: LayerConfig | undefined
   equationExampleId: string
   activeEquation: 'x' | 'y' | 'z'
   setCustomPresetName: (value: string) => void
-  setActiveLayerId: (value: string) => void
   setActiveEquation: (value: 'x' | 'y' | 'z') => void
   onPresetSelect: (value: string) => void
   updateActiveLayer: (patch: Partial<LayerConfig>) => void
@@ -24,9 +28,6 @@ export type LayerControlsProps = {
   deleteCurrentCustomPreset: () => void
   exportCustomPresets: () => void
   importCustomPresets: () => void
-  addLayer: () => void
-  duplicateLayer: () => void
-  removeLayer: () => void
   applyEquationExample: (id: string) => void
   insertSnippet: (snippet: string) => void
   parseNumber: (value: string, fallback: number) => number
@@ -34,17 +35,19 @@ export type LayerControlsProps = {
 
 export function LayerControls({
   uiMode,
+  curveScope = 'all',
+  showPresetLibrary = true,
+  presetMode = 'full',
+  showNonPresetSections = true,
+  sectionScope = 'all',
   selectedPresetId,
   customPresets,
   customPresetName,
   activeCustomPreset,
-  layers,
-  activeLayerId,
   activeLayer,
   equationExampleId,
   activeEquation,
   setCustomPresetName,
-  setActiveLayerId,
   setActiveEquation,
   onPresetSelect,
   updateActiveLayer,
@@ -54,45 +57,59 @@ export function LayerControls({
   deleteCurrentCustomPreset,
   exportCustomPresets,
   importCustomPresets,
-  addLayer,
-  duplicateLayer,
-  removeLayer,
   applyEquationExample,
   insertSnippet,
   parseNumber,
 }: LayerControlsProps) {
+  const showBasicCurveFields = curveScope !== 'advanced-only'
+  const showAdvancedCurveFields = uiMode === 'advanced' && curveScope !== 'basic-only'
+  const showPresetPicker = presetMode !== 'manage-only'
+  const showPresetManagement = uiMode === 'advanced' && presetMode !== 'picker-only'
+  const showCoreSections = showNonPresetSections && sectionScope !== 'color-only'
+  const showColorSection = uiMode === 'advanced' && sectionScope !== 'non-color'
+
   return (
     <section className="control-group" aria-label="Layer Controls">
-      <section className="panel-section">
+      {showPresetLibrary ? <section className="panel-section">
         <h3 className="panel-section-title">Preset Library</h3>
         <p className="section-help">Choose a starting preset and manage saved custom presets.</p>
 
-        <div className="field field-span-2">
-          <label htmlFor="preset">Preset</label>
-          <select
-            id="preset"
-            title="Built-in presets are templates. Custom presets are your saved layer settings."
-            value={selectedPresetId}
-            onChange={(event) => onPresetSelect(event.target.value)}
-          >
-            <optgroup label="Built-in">
-              {PRESETS.map((preset) => (
-                <option key={preset.id} value={`builtin:${preset.id}`}>
-                  {preset.name}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="Custom">
-              {customPresets.map((preset) => (
-                <option key={preset.id} value={`custom:${preset.id}`}>
-                  {preset.name}
-                </option>
-              ))}
-            </optgroup>
-          </select>
-        </div>
+        {showPresetPicker ? (
+          <div className="field field-span-2">
+            <label htmlFor="preset">Preset</label>
+            <Select value={selectedPresetId} onValueChange={onPresetSelect}>
+              <SelectTrigger id="preset" title="Built-in presets are templates. Custom presets are your saved layer settings." className="w-full">
+                <SelectValue placeholder="Select preset" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Built-in</SelectLabel>
+                  {PRESETS.map((preset) => (
+                    <SelectItem key={preset.id} value={`builtin:${preset.id}`}>
+                      {preset.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+                <SelectGroup>
+                  <SelectLabel>Custom</SelectLabel>
+                  {customPresets.length > 0 ? (
+                    customPresets.map((preset) => (
+                      <SelectItem key={preset.id} value={`custom:${preset.id}`}>
+                        {preset.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="custom:__none__" disabled>
+                      No custom presets
+                    </SelectItem>
+                  )}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
 
-        {uiMode === 'advanced' ? (
+        {showPresetManagement ? (
           <>
             <div className="field-grid">
               <div className="field field-span-2">
@@ -116,53 +133,14 @@ export function LayerControls({
             </div>
           </>
         ) : null}
-      </section>
+      </section> : null}
 
-      <section className="panel-section">
-        <h3 className="panel-section-title">Layer Stack</h3>
-        <p className="section-help">Select which layer you are editing and manage layer visibility and duplicates.</p>
-        <div className="field-grid">
-          <div className="field">
-            <label htmlFor="layer-select">Layer</label>
-            <select id="layer-select" title="Select which layer the controls below edit." value={activeLayerId} onChange={(event) => setActiveLayerId(event.target.value)}>
-              {layers.map((layer) => (
-                <option key={layer.id} value={layer.id}>
-                  {layer.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="layer-name">Layer Name</label>
-            <input
-              id="layer-name"
-              title="Friendly layer name shown in the layer selector."
-              value={activeLayer?.name ?? ''}
-              onChange={(event) => updateActiveLayer({ name: event.target.value || 'Layer' })}
-            />
-          </div>
-          <div className="field checkbox-field">
-            <label htmlFor="layer-visible">Visible</label>
-            <input
-              id="layer-visible"
-              type="checkbox"
-              title="Toggle whether this layer is rendered."
-              checked={activeLayer?.visible ?? true}
-              onChange={(event) => updateActiveLayer({ visible: event.target.checked })}
-            />
-          </div>
-        </div>
-
-        <div className="action-row">
-          <Button type="button" size="sm" title="Add a new layer using current settings as a base." onClick={addLayer} disabled={layers.length >= 4}>Add Layer</Button>
-          <Button type="button" size="sm" title="Create a copy of the selected layer." onClick={duplicateLayer} disabled={layers.length >= 4}>Duplicate</Button>
-          <Button type="button" size="sm" variant="secondary" title="Remove the selected layer." onClick={removeLayer} disabled={layers.length <= 1}>Remove</Button>
-        </div>
-      </section>
-
-      {uiMode === 'advanced' ? <section className="panel-section">
+      {showCoreSections && uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Equations</h3>
         <p className="section-help">Define parametric formulas for x, y, and z. These formulas run continuously over time variables t and u.</p>
+        <p className="section-help">
+          Equation helpers: sin, cos, tan, sqrt, pow, PI, E, clamp(v,lo,hi), mix(a,b,p), saw(v), triangle(v), pulse(v,w). Time terms: t and u.
+        </p>
 
         <div className="field-grid">
           <div className="field field-span-2">
@@ -206,28 +184,36 @@ export function LayerControls({
 
           <div className="field">
             <label htmlFor="equation-example">Example</label>
-            <select id="equation-example" title="Apply a predefined equation set." value={equationExampleId} onChange={(event) => applyEquationExample(event.target.value)}>
-              <option value="">Custom</option>
-              {EQUATION_EXAMPLES.map((example) => (
-                <option key={example.id} value={example.id}>
-                  {example.name}
-                </option>
-              ))}
-            </select>
+            <Select
+              value={equationExampleId || '__custom__'}
+              onValueChange={(value) => applyEquationExample(value === '__custom__' ? '' : value)}
+            >
+              <SelectTrigger id="equation-example" title="Apply a predefined equation set." className="w-full">
+                <SelectValue placeholder="Custom" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__custom__">Custom</SelectItem>
+                {EQUATION_EXAMPLES.map((example) => (
+                  <SelectItem key={example.id} value={example.id}>
+                    {example.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="field">
             <label htmlFor="active-equation">Target</label>
-            <select
-              id="active-equation"
-              title="Choose whether snippet buttons append to x(t,u), y(t,u), or z(t,u)."
-              value={activeEquation}
-              onChange={(event) => setActiveEquation(event.target.value as 'x' | 'y' | 'z')}
-            >
-              <option value="x">x(t,u)</option>
-              <option value="y">y(t,u)</option>
-              <option value="z">z(t,u)</option>
-            </select>
+            <Select value={activeEquation} onValueChange={(value) => setActiveEquation(value as 'x' | 'y' | 'z')}>
+              <SelectTrigger id="active-equation" title="Choose whether snippet buttons append to x(t,u), y(t,u), or z(t,u)." className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="x">x(t,u)</SelectItem>
+                <SelectItem value="y">y(t,u)</SelectItem>
+                <SelectItem value="z">z(t,u)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -239,53 +225,59 @@ export function LayerControls({
         </div>
       </section> : null}
 
-      <section className="panel-section">
+      {showCoreSections ? <section className="panel-section">
         <h3 className="panel-section-title">Curve</h3>
         <p className="section-help">Shape and timing controls for the selected layer trajectory and trail behavior.</p>
         <div className="field-grid">
-          <div className="field">
-            <label htmlFor="r-big">R (Outer Radius)</label>
-            <input
-              id="r-big"
-              type="number"
-              title="Main radius in classic spirograph equations."
-              step="0.2"
-              value={activeLayer?.R ?? 0}
-              onChange={(event) => updateActiveLayer({ R: parseNumber(event.target.value, activeLayer?.R ?? 0) })}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="r-small">r (Inner Radius)</label>
-            <input
-              id="r-small"
-              type="number"
-              title="Secondary radius; ratio R/r strongly affects pattern repetition."
-              value={activeLayer?.r ?? 0}
-              onChange={(event) => updateActiveLayer({ r: parseNumber(event.target.value, activeLayer?.r ?? 0) })}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="offset">d (Pen Offset)</label>
-            <input
-              id="offset"
-              type="number"
-              title="Distance from the moving center to drawing point."
-              value={activeLayer?.d ?? 0}
-              onChange={(event) => updateActiveLayer({ d: parseNumber(event.target.value, activeLayer?.d ?? 0) })}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="speed">Speed</label>
-            <input
-              id="speed"
-              type="number"
-              title="How fast parameter t advances."
-              step="0.1"
-              value={activeLayer?.speed ?? 0}
-              onChange={(event) => updateActiveLayer({ speed: parseNumber(event.target.value, activeLayer?.speed ?? 0) })}
-            />
-          </div>
-          {uiMode === 'advanced' ? (
+          {showBasicCurveFields ? (
+            <>
+              <div className="field">
+                <label htmlFor="r-big">R (Outer Radius)</label>
+                <input
+                  id="r-big"
+                  type="number"
+                  title="Main radius in classic spirograph equations."
+                  step="0.2"
+                  value={activeLayer?.R ?? 0}
+                  onChange={(event) => updateActiveLayer({ R: parseNumber(event.target.value, activeLayer?.R ?? 0) })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="r-small">r (Inner Radius)</label>
+                <input
+                  id="r-small"
+                  type="number"
+                  title="Secondary radius; ratio R/r strongly affects pattern repetition."
+                  value={activeLayer?.r ?? 0}
+                  onChange={(event) => updateActiveLayer({ r: parseNumber(event.target.value, activeLayer?.r ?? 0) })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="offset">d (Pen Offset)</label>
+                <input
+                  id="offset"
+                  type="number"
+                  title="Distance from the moving center to drawing point."
+                  value={activeLayer?.d ?? 0}
+                  onChange={(event) => updateActiveLayer({ d: parseNumber(event.target.value, activeLayer?.d ?? 0) })}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="speed">Speed ({(activeLayer?.speed ?? 0).toFixed(1)})</label>
+                <Slider
+                  id="speed"
+                  min={0}
+                  max={Math.max(8, activeLayer?.speed ?? 0)}
+                  step={0.1}
+                  value={[activeLayer?.speed ?? 0]}
+                  onValueChange={(value) => updateActiveLayer({ speed: value[0] ?? (activeLayer?.speed ?? 0) })}
+                  aria-label="Speed"
+                />
+              </div>
+            </>
+          ) : null}
+
+          {showAdvancedCurveFields ? (
             <>
               <div className="field">
                 <label htmlFor="u-speed">u Speed</label>
@@ -338,99 +330,112 @@ export function LayerControls({
               </div>
             </>
           ) : null}
-          <div className="field">
-            <label htmlFor="multi-line-count">Line Copies</label>
-            <input
-              id="multi-line-count"
-              type="number"
-              title="Draw several line copies around each sampled particle point."
-              min="1"
-              max="16"
-              step="1"
-              value={activeLayer?.multiLineCount ?? 1}
-              onChange={(event) =>
-                updateActiveLayer({
-                  multiLineCount: Math.max(1, Math.min(16, Math.round(parseNumber(event.target.value, activeLayer?.multiLineCount ?? 1)))),
-                })
-              }
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="multi-line-motion">Line Motion</label>
-            <select
-              id="multi-line-motion"
-              title="How line copies move around the particle point."
-              value={activeLayer?.multiLineMotion ?? 'fixed'}
-              onChange={(event) => updateActiveLayer({ multiLineMotion: event.target.value as MultiLineMotionMode })}
-            >
-              <option value="fixed">Fixed</option>
-              <option value="orbit">Orbit</option>
-              <option value="random">Random</option>
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="multi-line-spread">Line Spread (px)</label>
-            <input
-              id="multi-line-spread"
-              type="number"
-              title="Distance from the particle point used by line copies."
-              min="0"
-              step="1"
-              value={activeLayer?.multiLineSpread ?? 14}
-              onChange={(event) =>
-                updateActiveLayer({ multiLineSpread: Math.max(0, parseNumber(event.target.value, activeLayer?.multiLineSpread ?? 14)) })
-              }
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="multi-line-motion-speed">Motion Speed</label>
-            <input
-              id="multi-line-motion-speed"
-              type="number"
-              title="Angular speed for orbit/random motion of line copies."
-              step="0.1"
-              value={activeLayer?.multiLineMotionSpeed ?? 1}
-              onChange={(event) =>
-                updateActiveLayer({ multiLineMotionSpeed: parseNumber(event.target.value, activeLayer?.multiLineMotionSpeed ?? 1) })
-              }
-            />
-          </div>
+          {showBasicCurveFields ? (
+            <>
+              <div className="field">
+                <label htmlFor="multi-line-count">Line Copies</label>
+                <input
+                  id="multi-line-count"
+                  type="number"
+                  title="Draw several line copies around each sampled particle point."
+                  min="1"
+                  max="16"
+                  step="1"
+                  value={activeLayer?.multiLineCount ?? 1}
+                  onChange={(event) =>
+                    updateActiveLayer({
+                      multiLineCount: Math.max(1, Math.min(16, Math.round(parseNumber(event.target.value, activeLayer?.multiLineCount ?? 1)))),
+                    })
+                  }
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="multi-line-motion">Line Motion</label>
+                <Select
+                  value={activeLayer?.multiLineMotion ?? 'fixed'}
+                  onValueChange={(value) => updateActiveLayer({ multiLineMotion: value as MultiLineMotionMode })}
+                >
+                  <SelectTrigger id="multi-line-motion" title="How line copies move around the particle point." className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Fixed</SelectItem>
+                    <SelectItem value="orbit">Orbit</SelectItem>
+                    <SelectItem value="random">Random</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="field">
+                <label htmlFor="multi-line-spread">Line Spread (px)</label>
+                <input
+                  id="multi-line-spread"
+                  type="number"
+                  title="Distance from the particle point used by line copies."
+                  min="0"
+                  step="1"
+                  value={activeLayer?.multiLineSpread ?? 14}
+                  onChange={(event) =>
+                    updateActiveLayer({ multiLineSpread: Math.max(0, parseNumber(event.target.value, activeLayer?.multiLineSpread ?? 14)) })
+                  }
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="multi-line-motion-speed">Motion Speed</label>
+                <input
+                  id="multi-line-motion-speed"
+                  type="number"
+                  title="Angular speed for orbit/random motion of line copies."
+                  step="0.1"
+                  value={activeLayer?.multiLineMotionSpeed ?? 1}
+                  onChange={(event) =>
+                    updateActiveLayer({ multiLineMotionSpeed: parseNumber(event.target.value, activeLayer?.multiLineMotionSpeed ?? 1) })
+                  }
+                />
+              </div>
+            </>
+          ) : null}
         </div>
-      </section>
+      </section> : null}
 
-      {uiMode === 'advanced' ? <section className="panel-section">
+      {showColorSection ? <section className="panel-section">
         <h3 className="panel-section-title">Color</h3>
         <p className="section-help">Set how color is computed for this layer, including palette-based and fixed-hue options.</p>
         <div className="field-grid">
           <div className="field">
             <label htmlFor="color-mode">Color Mode</label>
-            <select
-              id="color-mode"
-              title="Select color logic source: hue cycle, palette, age, speed, or curvature."
+            <Select
               value={activeLayer?.colorMode ?? 'hue-cycle'}
-              onChange={(event) => updateActiveLayer({ colorMode: event.target.value as ColorMode })}
+              onValueChange={(value) => updateActiveLayer({ colorMode: value as ColorMode })}
             >
-              <option value="hue-cycle">Hue Cycle</option>
-              <option value="palette">Palette Sweep</option>
-              <option value="age">By Age</option>
-              <option value="speed">By Speed</option>
-              <option value="curvature">By Curvature</option>
-            </select>
+              <SelectTrigger id="color-mode" title="Select color logic source: hue cycle, palette, age, speed, or curvature." className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hue-cycle">Hue Cycle</SelectItem>
+                <SelectItem value="palette">Palette Sweep</SelectItem>
+                <SelectItem value="age">By Age</SelectItem>
+                <SelectItem value="speed">By Speed</SelectItem>
+                <SelectItem value="curvature">By Curvature</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="field">
             <label htmlFor="palette">Palette</label>
-            <select
-              id="palette"
-              title="Palette used when Color Mode is set to Palette Sweep."
+            <Select
               value={activeLayer?.paletteId ?? 'neon'}
-              onChange={(event) => updateActiveLayer({ paletteId: event.target.value as PaletteId })}
+              onValueChange={(value) => updateActiveLayer({ paletteId: value as PaletteId })}
             >
-              <option value="neon">Neon</option>
-              <option value="sunset">Sunset</option>
-              <option value="ocean">Ocean</option>
-              <option value="forest">Forest</option>
-              <option value="candy">Candy</option>
-            </select>
+              <SelectTrigger id="palette" title="Palette used when Color Mode is set to Palette Sweep." className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="neon">Neon</SelectItem>
+                <SelectItem value="sunset">Sunset</SelectItem>
+                <SelectItem value="ocean">Ocean</SelectItem>
+                <SelectItem value="forest">Forest</SelectItem>
+                <SelectItem value="candy">Candy</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="field checkbox-field">
             <label htmlFor="hue-lock">Hue Lock</label>

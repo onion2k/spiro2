@@ -5,13 +5,18 @@ import type { GlobalSettings } from '@/spiro/renderers/defaults'
 import type { LineMaterialPresetId, ThreeCameraMode, ThreeLineRenderMode } from '@/spiro/renderers/types'
 import { MATERIAL_PRESETS } from '@/spiro/renderers/materialPresets'
 import { STYLE_PRESETS } from '@/spiro/stylePresets'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Slider } from '@/components/ui/slider'
 
 export type GlobalControlsProps = {
   uiMode: 'basic' | 'advanced'
+  scope?: 'pattern' | 'pattern-basic' | 'pattern-style' | 'pattern-symmetry' | 'rendering' | 'all'
   settings: GlobalSettings
   selectedStylePresetId: string
   onStylePresetSelect: (presetId: string) => void
   updateSetting: <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => void
+  onRecenterCamera: () => void
   parseNumber: (value: string, fallback: number) => number
 }
 
@@ -25,7 +30,16 @@ type NumericBounds = {
   integer?: boolean
 }
 
-export function GlobalControls({ uiMode, settings, selectedStylePresetId, onStylePresetSelect, updateSetting, parseNumber }: GlobalControlsProps) {
+export function GlobalControls({
+  uiMode,
+  scope = 'all',
+  settings,
+  selectedStylePresetId,
+  onStylePresetSelect,
+  updateSetting,
+  onRecenterCamera,
+  parseNumber,
+}: GlobalControlsProps) {
   const {
     threeCameraMode,
     threeLineRenderMode,
@@ -48,6 +62,7 @@ export function GlobalControls({ uiMode, settings, selectedStylePresetId, onStyl
     strokeWidthMode,
     baseLineWidth,
     lineWidthBoost,
+    trailSmoothing,
     dashedLines,
     dashLength,
     dashGap,
@@ -55,6 +70,7 @@ export function GlobalControls({ uiMode, settings, selectedStylePresetId, onStyl
     threeSpriteSoftness,
     autoRotateScene,
     autoRotateSpeed,
+    showDebugGeometry,
     lineMaterialPreset,
     lineMaterialColor,
     lineMaterialMetalness,
@@ -112,59 +128,79 @@ export function GlobalControls({ uiMode, settings, selectedStylePresetId, onStyl
     updateSetting('lineMaterialColor', event.target.value)
   }
 
+  const showPatternSections = scope === 'pattern' || scope === 'all'
+  const showStyleSection = scope === 'pattern-basic' || scope === 'pattern-style' || scope === 'all'
+  const showRenderingSections = scope === 'rendering' || scope === 'all'
+  const showSymmetrySection =
+    scope === 'pattern-basic' || scope === 'pattern-symmetry' || (scope === 'all' && uiMode === 'advanced')
+
   return (
     <section className="control-group" aria-label="Global Controls">
-      <section className="panel-section">
+      {showStyleSection ? <section className="panel-section">
         <h3 className="panel-section-title">Style</h3>
         <p className="section-help">Apply a bundled style that updates line copies, motion behavior, and color direction.</p>
         <div className="field-grid">
           <div className="field field-span-2">
             <label htmlFor="style-preset">Style Preset</label>
-            <select
-              id="style-preset"
-              title="Apply a bundled style for line copies, motion, and colors across all layers."
-              value={selectedStylePresetId}
-              onChange={(event) => onStylePresetSelect(event.target.value)}
-            >
-              {STYLE_PRESETS.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.name}
-                </option>
-              ))}
-            </select>
+            <Select value={selectedStylePresetId} onValueChange={onStylePresetSelect}>
+              <SelectTrigger id="style-preset" title="Apply a bundled style for line copies, motion, and colors across all layers." className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No style</SelectItem>
+                {STYLE_PRESETS.map((preset) => (
+                  <SelectItem key={preset.id} value={preset.id}>
+                    {preset.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
-      </section>
+      </section> : null}
 
-      <section className="panel-section">
+      {showRenderingSections ? <section className="panel-section">
         <h3 className="panel-section-title">Renderer</h3>
         <p className="section-help">Configure three.js camera projection and line rendering backend.</p>
         <div className="field-grid">
           <div className="field">
             <label htmlFor="three-camera-mode">three.js Camera</label>
-            <select
-              id="three-camera-mode"
-              title="Switch between orthographic and perspective camera projection."
-              value={threeCameraMode}
-              onChange={(event) => updateSetting('threeCameraMode', event.target.value as ThreeCameraMode)}
-            >
-              <option value="orthographic">Orthographic</option>
-              <option value="perspective">Perspective</option>
-            </select>
+            <Select value={threeCameraMode} onValueChange={(value) => updateSetting('threeCameraMode', value as ThreeCameraMode)}>
+              <SelectTrigger id="three-camera-mode" title="Switch between orthographic and perspective camera projection." className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="orthographic">Orthographic</SelectItem>
+                <SelectItem value="perspective">Perspective</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="field checkbox-field">
+            <label htmlFor="show-debug-geometry">Show Debug Geometry</label>
+            <input
+              id="show-debug-geometry"
+              type="checkbox"
+              title="Display debug ring, axis, and origin markers."
+              checked={showDebugGeometry}
+              onChange={(event) => updateSetting('showDebugGeometry', event.target.checked)}
+            />
           </div>
           {uiMode === 'advanced' ? (
             <>
               <div className="field">
                 <label htmlFor="three-line-render-mode">three.js Line Mode</label>
-                <select
-                  id="three-line-render-mode"
-                  title="Choose how line mode is rendered in three.js."
+                <Select
                   value={threeLineRenderMode}
-                  onChange={(event) => updateSetting('threeLineRenderMode', event.target.value as ThreeLineRenderMode)}
+                  onValueChange={(value) => updateSetting('threeLineRenderMode', value as ThreeLineRenderMode)}
                 >
-                  <option value="fat-lines">Fat Lines</option>
-                  <option value="instanced-sprites">Instanced Point Sprites</option>
-                </select>
+                  <SelectTrigger id="three-line-render-mode" title="Choose how line mode is rendered in three.js." className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fat-lines">Fat Lines</SelectItem>
+                    <SelectItem value="instanced-sprites">Instanced Point Sprites</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="field">
                 <label htmlFor="three-sprite-size">Sprite Size</label>
@@ -194,36 +230,48 @@ export function GlobalControls({ uiMode, settings, selectedStylePresetId, onStyl
                   disabled={threeLineRenderMode !== 'instanced-sprites'}
                 />
               </div>
-              <div className="field checkbox-field">
-                <label htmlFor="auto-rotate-scene">Auto Rotate Scene</label>
-                <input
-                  id="auto-rotate-scene"
-                  type="checkbox"
-                  title="Automatically orbit the camera around the scene."
-                  checked={autoRotateScene}
-                  onChange={(event) => updateSetting('autoRotateScene', event.target.checked)}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="auto-rotate-speed">Auto Rotate Speed</label>
-                <input
-                  id="auto-rotate-speed"
-                  type="number"
-                  title="OrbitControls auto-rotation speed."
-                  min="-10"
-                  max="10"
-                  step="0.1"
-                  value={autoRotateSpeed}
-                  onChange={onNumberChange('autoRotateSpeed', autoRotateSpeed, { min: -10, max: 10 })}
-                  disabled={!autoRotateScene}
-                />
-              </div>
             </>
           ) : null}
         </div>
-      </section>
+      </section> : null}
 
-      {uiMode === 'advanced' ? <section className="panel-section">
+      {showRenderingSections ? <section className="panel-section">
+        <h3 className="panel-section-title">Camera Motion</h3>
+        <p className="section-help">Adjust camera animation and recenter the camera on the origin.</p>
+        <div className="field-grid">
+          <div className="field checkbox-field">
+            <label htmlFor="auto-rotate-scene">Auto Rotate Scene</label>
+            <input
+              id="auto-rotate-scene"
+              type="checkbox"
+              title="Automatically orbit the camera around the scene."
+              checked={autoRotateScene}
+              onChange={(event) => updateSetting('autoRotateScene', event.target.checked)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="auto-rotate-speed">Auto Rotate Speed</label>
+            <input
+              id="auto-rotate-speed"
+              type="number"
+              title="OrbitControls auto-rotation speed."
+              min="-10"
+              max="10"
+              step="0.1"
+              value={autoRotateSpeed}
+              onChange={onNumberChange('autoRotateSpeed', autoRotateSpeed, { min: -10, max: 10 })}
+              disabled={!autoRotateScene}
+            />
+          </div>
+        </div>
+        <div className="action-row">
+          <Button type="button" size="sm" title="Recenter camera on the pattern origin." onClick={onRecenterCamera}>
+            Recenter
+          </Button>
+        </div>
+      </section> : null}
+
+      {showSymmetrySection ? <section className="panel-section">
         <h3 className="panel-section-title">Symmetry</h3>
         <p className="section-help">Apply mirror and rotational symmetry to all active layers.</p>
         <div className="field-grid">
@@ -262,7 +310,7 @@ export function GlobalControls({ uiMode, settings, selectedStylePresetId, onStyl
         </div>
       </section> : null}
 
-      {uiMode === 'advanced' ? <section className="panel-section">
+      {showPatternSections && uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Noise And Modulation</h3>
         <p className="section-help">Animate variation in phase, frequency, amplitude, and procedural noise for organic motion.</p>
         <div className="field-grid">
@@ -301,23 +349,28 @@ export function GlobalControls({ uiMode, settings, selectedStylePresetId, onStyl
           </div>
           <div className="field">
             <label htmlFor="noise-mode">Noise Mode</label>
-            <select id="noise-mode" title="Select noise algorithm or disable noise." value={noiseMode} onChange={(event) => updateSetting('noiseMode', event.target.value as NoiseMode)}>
-              <option value="off">Off</option>
-              <option value="grain">Grain</option>
-              <option value="flow">Flow</option>
-            </select>
+            <Select value={noiseMode} onValueChange={(value) => updateSetting('noiseMode', value as NoiseMode)}>
+              <SelectTrigger id="noise-mode" title="Select noise algorithm or disable noise." className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="off">Off</SelectItem>
+                <SelectItem value="grain">Grain</SelectItem>
+                <SelectItem value="flow">Flow</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="field">
-            <label htmlFor="noise-amt">Noise Amount</label>
-            <input
+            <label htmlFor="noise-amt">Noise Amount ({noiseAmount.toFixed(2)})</label>
+            <Slider
               id="noise-amt"
-              type="number"
-              title="Overall amount of positional perturbation from noise."
-              step="0.05"
-              min="0"
-              value={noiseAmount}
-              onChange={onNumberChange('noiseAmount', noiseAmount, { min: 0 })}
+              min={0}
+              max={Math.max(1, noiseAmount)}
+              step={0.05}
+              value={[noiseAmount]}
+              onValueChange={(value) => updateSetting('noiseAmount', value[0] ?? noiseAmount)}
               disabled={noiseMode === 'off'}
+              aria-label="Noise Amount"
             />
           </div>
           <div className="field">
@@ -375,7 +428,7 @@ export function GlobalControls({ uiMode, settings, selectedStylePresetId, onStyl
         </div>
       </section> : null}
 
-      {uiMode === 'advanced' ? <section className="panel-section">
+      {showRenderingSections && uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Performance</h3>
         <p className="section-help">Balance smoothness and frame rate by constraining trail size and adaptive stepping.</p>
         <div className="field-grid">
@@ -418,33 +471,33 @@ export function GlobalControls({ uiMode, settings, selectedStylePresetId, onStyl
         </div>
       </section> : null}
 
-      {uiMode === 'advanced' ? <section className="panel-section">
+      {showRenderingSections && uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Stroke Geometry</h3>
         <p className="section-help">Configure line thickness behavior and dash patterns.</p>
         <div className="field-grid">
           <div className="field">
             <label htmlFor="stroke-width-mode">Stroke Width Mode</label>
-            <select
-              id="stroke-width-mode"
-              title="Set how stroke width is computed along the path."
-              value={strokeWidthMode}
-              onChange={(event) => updateSetting('strokeWidthMode', event.target.value as StrokeWidthMode)}
-            >
-              <option value="fixed">Fixed Width</option>
-              <option value="speed">Width by Speed</option>
-              <option value="curvature">Width by Curvature</option>
-            </select>
+            <Select value={strokeWidthMode} onValueChange={(value) => updateSetting('strokeWidthMode', value as StrokeWidthMode)}>
+              <SelectTrigger id="stroke-width-mode" title="Set how stroke width is computed along the path." className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fixed">Fixed Width</SelectItem>
+                <SelectItem value="speed">Width by Speed</SelectItem>
+                <SelectItem value="curvature">Width by Curvature</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="field">
-            <label htmlFor="base-line-width">Base Width</label>
-            <input
+            <label htmlFor="base-line-width">Base Width ({baseLineWidth.toFixed(1)})</label>
+            <Slider
               id="base-line-width"
-              type="number"
-              title="Base line width in pixels."
-              min="0.2"
-              step="0.1"
-              value={baseLineWidth}
-              onChange={onNumberChange('baseLineWidth', baseLineWidth, { min: 0.2 })}
+              min={0.2}
+              max={Math.max(8, baseLineWidth)}
+              step={0.1}
+              value={[baseLineWidth]}
+              onValueChange={(value) => updateSetting('baseLineWidth', value[0] ?? baseLineWidth)}
+              aria-label="Base Width"
             />
           </div>
           <div className="field">
@@ -457,6 +510,18 @@ export function GlobalControls({ uiMode, settings, selectedStylePresetId, onStyl
               step="0.1"
               value={lineWidthBoost}
               onChange={onNumberChange('lineWidthBoost', lineWidthBoost, { min: 0 })}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="trail-smoothing">Trail Smoothing ({trailSmoothing.toFixed(2)})</label>
+            <Slider
+              id="trail-smoothing"
+              min={0}
+              max={1}
+              step={0.05}
+              value={[trailSmoothing]}
+              onValueChange={(value) => updateSetting('trailSmoothing', value[0] ?? trailSmoothing)}
+              aria-label="Trail Smoothing"
             />
           </div>
           <div className="field checkbox-field">
@@ -498,18 +563,16 @@ export function GlobalControls({ uiMode, settings, selectedStylePresetId, onStyl
         </div>
       </section> : null}
 
-      {uiMode === 'advanced' ? <section className="panel-section">
+      {showRenderingSections && uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Line Material</h3>
         <p className="section-help">Configure physical material properties for fat-line rendering.</p>
         <div className="field-grid">
           <div className="field">
             <label htmlFor="line-material-preset">Material Preset</label>
-            <select
-              id="line-material-preset"
-              title="Apply a bundled physical material setup for ribbon lines."
+            <Select
               value={lineMaterialPreset}
-              onChange={(event) => {
-                const presetId = event.target.value as LineMaterialPresetId
+              onValueChange={(value) => {
+                const presetId = value as LineMaterialPresetId
                 if (presetId === 'custom') {
                   updateSetting('lineMaterialPreset', 'custom')
                 } else {
@@ -518,13 +581,18 @@ export function GlobalControls({ uiMode, settings, selectedStylePresetId, onStyl
               }}
               disabled={threeLineRenderMode !== 'fat-lines'}
             >
-              <option value="matte-ribbon">Matte Ribbon</option>
-              <option value="satin-plastic">Satin Plastic</option>
-              <option value="brushed-metal">Brushed Metal</option>
-              <option value="chrome">Chrome</option>
-              <option value="frosted-glass">Frosted Glass</option>
-              <option value="custom">Custom</option>
-            </select>
+              <SelectTrigger id="line-material-preset" title="Apply a bundled physical material setup for ribbon lines." className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="matte-ribbon">Matte Ribbon</SelectItem>
+                <SelectItem value="satin-plastic">Satin Plastic</SelectItem>
+                <SelectItem value="brushed-metal">Brushed Metal</SelectItem>
+                <SelectItem value="chrome">Chrome</SelectItem>
+                <SelectItem value="frosted-glass">Frosted Glass</SelectItem>
+                <SelectItem value="custom">Custom</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="field">
             <label htmlFor="line-material-color">Line Color</label>

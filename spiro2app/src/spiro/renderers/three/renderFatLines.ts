@@ -24,6 +24,7 @@ type RenderFatLinesOptions = {
   strokeWidthMode: StrokeWidthMode
   baseLineWidth: number
   lineWidthBoost: number
+  trailSmoothing: number
   dashedLines: boolean
   dashLength: number
   dashGap: number
@@ -35,6 +36,40 @@ type RenderFatLinesOptions = {
   lineMaterialTransmission: number
   lineMaterialThickness: number
   lineMaterialIor: number
+}
+
+function smoothTrailPoint(trail: RuntimeLayer['trail'], index: number, amount: number) {
+  const current = trail[index]
+  if (!current || amount <= 0 || !current.connected) {
+    return current
+  }
+  const previous = trail[Math.max(0, index - 1)]
+  const next = trail[Math.min(trail.length - 1, index + 1)]
+  if (!previous || !next || !previous.connected || !next.connected) {
+    return current
+  }
+  const clamped = Math.max(0, Math.min(1, amount))
+  const neighborWeight = Math.min(0.45, clamped * 0.45)
+  const selfWeight = 1 - neighborWeight * 2
+  return {
+    ...current,
+    x: current.x * selfWeight + (previous.x + next.x) * neighborWeight,
+    y: current.y * selfWeight + (previous.y + next.y) * neighborWeight,
+    z: current.z * selfWeight + (previous.z + next.z) * neighborWeight,
+  }
+}
+
+function buildSmoothedTrail(trail: RuntimeLayer['trail'], amount: number) {
+  if (amount <= 0 || trail.length < 3) {
+    return trail
+  }
+  const clamped = Math.max(0, Math.min(1, amount))
+  const passes = Math.max(1, Math.min(10, Math.round(clamped * 10)))
+  let output = trail.map((point) => ({ ...point }))
+  for (let pass = 0; pass < passes; pass += 1) {
+    output = output.map((_, index) => smoothTrailPoint(output, index, clamped) ?? output[index])
+  }
+  return output
 }
 
 type TrackStrip = { positions: number[]; colors: number[] }
@@ -213,6 +248,7 @@ export function renderFatLines(options: RenderFatLinesOptions) {
     strokeWidthMode,
     baseLineWidth,
     lineWidthBoost,
+    trailSmoothing,
     dashedLines,
     dashLength,
     dashGap,
@@ -243,10 +279,14 @@ export function renderFatLines(options: RenderFatLinesOptions) {
   const previousBucketByTrack = new Map<string, number>()
   const depthBiasByTrack = new Map<string, number>()
   const dashCycle = Math.max(1, dashLength + dashGap)
+  const smoothedTrail = buildSmoothedTrail(runtimeLayer.trail, trailSmoothing)
 
-  for (let i = 0; i < runtimeLayer.trail.length; i += Math.max(1, step)) {
-    const current = runtimeLayer.trail[i]
-    const tangent = tangentForTrail(runtimeLayer.trail, i, step)
+  for (let i = 0; i < smoothedTrail.length; i += Math.max(1, step)) {
+    const current = smoothedTrail[i]
+    if (!current) {
+      continue
+    }
+    const tangent = tangentForTrail(smoothedTrail, i, step)
     const offsets = buildLineOffsets(layer, current.index, runtimeLayer.paramU, tangent)
     const linePairs = offsets.length
     const style = colorForPoint(current, layer, nowSec)

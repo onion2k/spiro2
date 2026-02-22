@@ -1,6 +1,6 @@
 import type { SpiroRendererConfig } from './types'
 
-export type GlobalSettings = Omit<SpiroRendererConfig, 'layers' | 'compiledLayers' | 'isPaused' | 'resetTick'>
+export type GlobalSettings = Omit<SpiroRendererConfig, 'layers' | 'compiledLayers' | 'isPaused' | 'resetTick' | 'recenterTick'>
 
 export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   threeCameraMode: 'perspective',
@@ -24,6 +24,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   strokeWidthMode: 'fixed',
   baseLineWidth: 2.6,
   lineWidthBoost: 4.2,
+  trailSmoothing: 0,
   dashedLines: false,
   dashLength: 10,
   dashGap: 6,
@@ -32,6 +33,7 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   threeSpriteSoftness: 0.65,
   autoRotateScene: false,
   autoRotateSpeed: 1.2,
+  showDebugGeometry: false,
   lineMaterialPreset: 'matte-ribbon',
   lineMaterialColor: '#ffffff',
   lineMaterialMetalness: 0.05,

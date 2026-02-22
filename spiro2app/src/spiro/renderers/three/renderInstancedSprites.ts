@@ -58,10 +58,45 @@ type RenderInstancedSpritesOptions = {
   strokeWidthMode: StrokeWidthMode
   baseLineWidth: number
   lineWidthBoost: number
+  trailSmoothing: number
   dashedLines: boolean
   dashLength: number
   dashGap: number
   existingMesh?: SpriteBatchMesh
+}
+
+function smoothTrailPoint(trail: RuntimeLayer['trail'], index: number, amount: number) {
+  const current = trail[index]
+  if (!current || amount <= 0 || !current.connected) {
+    return current
+  }
+  const previous = trail[Math.max(0, index - 1)]
+  const next = trail[Math.min(trail.length - 1, index + 1)]
+  if (!previous || !next || !previous.connected || !next.connected) {
+    return current
+  }
+  const clamped = Math.max(0, Math.min(1, amount))
+  const neighborWeight = Math.min(0.45, clamped * 0.45)
+  const selfWeight = 1 - neighborWeight * 2
+  return {
+    ...current,
+    x: current.x * selfWeight + (previous.x + next.x) * neighborWeight,
+    y: current.y * selfWeight + (previous.y + next.y) * neighborWeight,
+    z: current.z * selfWeight + (previous.z + next.z) * neighborWeight,
+  }
+}
+
+function buildSmoothedTrail(trail: RuntimeLayer['trail'], amount: number) {
+  if (amount <= 0 || trail.length < 3) {
+    return trail
+  }
+  const clamped = Math.max(0, Math.min(1, amount))
+  const passes = Math.max(1, Math.min(10, Math.round(clamped * 10)))
+  let output = trail.map((point) => ({ ...point }))
+  for (let pass = 0; pass < passes; pass += 1) {
+    output = output.map((_, index) => smoothTrailPoint(output, index, clamped) ?? output[index])
+  }
+  return output
 }
 
 function clampSpriteSoftness(value: number) {
@@ -231,6 +266,7 @@ export function renderInstancedSprites(options: RenderInstancedSpritesOptions): 
     strokeWidthMode,
     baseLineWidth,
     lineWidthBoost,
+    trailSmoothing,
     dashedLines,
     dashLength,
     dashGap,
@@ -245,9 +281,13 @@ export function renderInstancedSprites(options: RenderInstancedSpritesOptions): 
   const spriteColors: Color[] = []
   const dashCycle = Math.max(1, dashLength + dashGap)
   const sizeScale = Math.max(0.1, spriteSizeScale)
+  const smoothedTrail = buildSmoothedTrail(runtimeLayer.trail, trailSmoothing)
 
-  for (let i = Math.max(step, 1); i < runtimeLayer.trail.length; i += step) {
-    const current = runtimeLayer.trail[i]
+  for (let i = Math.max(step, 1); i < smoothedTrail.length; i += step) {
+    const current = smoothedTrail[i]
+    if (!current) {
+      continue
+    }
     if (!current.connected) {
       continue
     }
@@ -257,7 +297,7 @@ export function renderInstancedSprites(options: RenderInstancedSpritesOptions): 
         continue
       }
     }
-    const tangent = tangentForTrail(runtimeLayer.trail, i, step)
+    const tangent = tangentForTrail(smoothedTrail, i, step)
     const pointOffsets = buildLineOffsets(layer, current.index, runtimeLayer.paramU, tangent)
     const style = colorForPoint(current, layer, nowSec)
     const rgb = new Color(`hsl(${style.hue}, 90%, 70%)`)

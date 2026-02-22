@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { ControlPanel } from './components/control-panel/ControlPanel'
 
@@ -22,11 +22,9 @@ import type {
 } from './spiro/types'
 
 const ThreeSurface = lazy(() => import('./spiro/renderers/ThreeSurface'))
-const UI_MODE_STORAGE_KEY = 'spiro2.ui-mode'
+const NO_STYLE_PRESET_ID = 'none'
 
 function App() {
-  const layerCounterRef = useRef(2)
-
   const [selectedPresetId, setSelectedPresetId] = useState(`builtin:${PRESETS[0].id}`)
   const [customPresets, setCustomPresets] = useState<CustomPreset[]>(() => {
     if (typeof window === 'undefined') {
@@ -46,28 +44,62 @@ function App() {
   const [layers, setLayers] = useState<LayerConfig[]>([
     createLayerFromPreset(PRESETS[0], 'layer-1', 'Layer 1'),
   ])
-  const [activeLayerId, setActiveLayerId] = useState('layer-1')
   const [equationExampleId, setEquationExampleId] = useState('')
   const [activeEquation, setActiveEquation] = useState<'x' | 'y' | 'z'>('x')
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>(() => ({ ...DEFAULT_GLOBAL_SETTINGS }))
-  const [selectedStylePresetId, setSelectedStylePresetId] = useState(STYLE_PRESETS[0].id)
+  const [selectedStylePresetId, setSelectedStylePresetId] = useState(NO_STYLE_PRESET_ID)
 
   const [isPaused, setIsPaused] = useState(false)
   const [resetTick, setResetTick] = useState(0)
+  const [recenterTick, setRecenterTick] = useState(0)
   const [uiMinimized, setUiMinimized] = useState(false)
-  const [uiMode, setUiMode] = useState<'basic' | 'advanced'>(() => {
-    if (typeof window === 'undefined') {
-      return 'basic'
-    }
-    const stored = window.localStorage.getItem(UI_MODE_STORAGE_KEY)
-    return stored === 'advanced' ? 'advanced' : 'basic'
-  })
-  const [controlTab, setControlTab] = useState<'layer' | 'global'>('layer')
+  const [controlTab, setControlTab] = useState<'pattern-basic' | 'pattern-advanced' | 'rendering' | 'presets'>('pattern-basic')
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false)
+  const clearStyleGlobalPatch: Partial<GlobalSettings> = {
+    rotationalRepeats: DEFAULT_GLOBAL_SETTINGS.rotationalRepeats,
+    rotationOffsetDeg: DEFAULT_GLOBAL_SETTINGS.rotationOffsetDeg,
+    phaseMod: DEFAULT_GLOBAL_SETTINGS.phaseMod,
+    frequencyMod: DEFAULT_GLOBAL_SETTINGS.frequencyMod,
+    amplitudeMod: DEFAULT_GLOBAL_SETTINGS.amplitudeMod,
+    noiseMode: DEFAULT_GLOBAL_SETTINGS.noiseMode,
+    noiseAmount: DEFAULT_GLOBAL_SETTINGS.noiseAmount,
+    noiseFrequency: DEFAULT_GLOBAL_SETTINGS.noiseFrequency,
+    noiseSpeed: DEFAULT_GLOBAL_SETTINGS.noiseSpeed,
+    noiseOctaves: DEFAULT_GLOBAL_SETTINGS.noiseOctaves,
+    baseLineWidth: DEFAULT_GLOBAL_SETTINGS.baseLineWidth,
+    lineWidthBoost: DEFAULT_GLOBAL_SETTINGS.lineWidthBoost,
+    lineMaterialPreset: DEFAULT_GLOBAL_SETTINGS.lineMaterialPreset,
+    lineMaterialColor: DEFAULT_GLOBAL_SETTINGS.lineMaterialColor,
+    lineMaterialMetalness: DEFAULT_GLOBAL_SETTINGS.lineMaterialMetalness,
+    lineMaterialRoughness: DEFAULT_GLOBAL_SETTINGS.lineMaterialRoughness,
+    lineMaterialClearcoat: DEFAULT_GLOBAL_SETTINGS.lineMaterialClearcoat,
+    lineMaterialClearcoatRoughness: DEFAULT_GLOBAL_SETTINGS.lineMaterialClearcoatRoughness,
+    lineMaterialTransmission: DEFAULT_GLOBAL_SETTINGS.lineMaterialTransmission,
+    lineMaterialThickness: DEFAULT_GLOBAL_SETTINGS.lineMaterialThickness,
+    lineMaterialIor: DEFAULT_GLOBAL_SETTINGS.lineMaterialIor,
+  }
+  const clearStyleLayerPatch: Partial<LayerConfig> = {
+    multiLineCount: 1,
+    multiLineMotion: 'fixed',
+    multiLineSpread: 14,
+    multiLineMotionSpeed: 1,
+    colorMode: 'hue-cycle',
+    paletteId: 'neon',
+    hueLock: false,
+    baseHue: 210,
+  }
   const updateGlobalSetting = <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => {
     setGlobalSettings((current) => ({ ...current, [key]: value }))
   }
 
   const applyStylePreset = (presetId: string) => {
+    if (presetId === NO_STYLE_PRESET_ID) {
+      setSelectedStylePresetId(NO_STYLE_PRESET_ID)
+      setGlobalSettings((current) => ({ ...current, ...clearStyleGlobalPatch }))
+      setLayers((current) => current.map((layer) => ({ ...layer, ...clearStyleLayerPatch })))
+      setResetTick((value) => value + 1)
+      return
+    }
     const preset = STYLE_PRESETS.find((entry) => entry.id === presetId)
     if (!preset) {
       return
@@ -79,8 +111,8 @@ function App() {
   }
 
   const activeLayer = useMemo(
-    () => layers.find((layer) => layer.id === activeLayerId) ?? layers[0],
-    [layers, activeLayerId]
+    () => layers[0],
+    [layers]
   )
   const compiledLayers = useMemo(
     () =>
@@ -235,47 +267,8 @@ function App() {
     }
   }, [activeCustomPreset])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return
-    }
-    window.localStorage.setItem(UI_MODE_STORAGE_KEY, uiMode)
-  }, [uiMode])
   const updateActiveLayer = (patch: Partial<LayerConfig>) => {
-    setLayers((existing) => existing.map((layer) => (layer.id === activeLayerId ? { ...layer, ...patch } : layer)))
-  }
-  const addLayer = () => {
-    if (layers.length >= 4) {
-      return
-    }
-    const id = `layer-${layerCounterRef.current}`
-    layerCounterRef.current += 1
-    const base = activeLayer ?? layers[0]
-    const layer = base
-      ? { ...base, id, name: `Layer ${layerCounterRef.current - 1}`, visible: true }
-      : createLayerFromPreset(PRESETS[0], id, `Layer ${layerCounterRef.current - 1}`)
-    setLayers((existing) => [...existing, layer])
-    setActiveLayerId(id)
-    setResetTick((value) => value + 1)
-  }
-  const duplicateLayer = () => {
-    if (!activeLayer || layers.length >= 4) {
-      return
-    }
-    const id = `layer-${layerCounterRef.current}`
-    layerCounterRef.current += 1
-    setLayers((existing) => [...existing, { ...activeLayer, id, name: `${activeLayer.name} Copy`, visible: true }])
-    setActiveLayerId(id)
-    setResetTick((value) => value + 1)
-  }
-  const removeLayer = () => {
-    if (!activeLayer || layers.length <= 1) {
-      return
-    }
-    const filtered = layers.filter((layer) => layer.id !== activeLayer.id)
-    setLayers(filtered)
-    setActiveLayerId(filtered[0].id)
-    setResetTick((value) => value + 1)
+    setLayers((existing) => (existing[0] ? [{ ...existing[0], ...patch }] : existing))
   }
 
   const applyEquationExample = (id: string) => {
@@ -350,9 +343,10 @@ function App() {
         compiledLayers,
         isPaused,
         resetTick,
+        recenterTick,
         settings: globalSettings,
       }),
-    [layers, compiledLayers, isPaused, resetTick, globalSettings]
+    [layers, compiledLayers, isPaused, resetTick, recenterTick, globalSettings]
   )
 
   return (
@@ -362,28 +356,24 @@ function App() {
       </Suspense>
       <ControlPanel
         uiMinimized={uiMinimized}
-        uiMode={uiMode}
         isPaused={isPaused}
         controlTab={controlTab}
         activeLayerError={activeLayerError}
+        mobilePanelOpen={mobilePanelOpen}
         setUiMinimized={setUiMinimized}
-        setUiMode={setUiMode}
         setIsPaused={setIsPaused}
         setControlTab={setControlTab}
+        setMobilePanelOpen={setMobilePanelOpen}
         onReset={() => setResetTick((value) => value + 1)}
         layerProps={{
-          uiMode,
           selectedPresetId,
           customPresets,
           customPresetName,
           activeCustomPreset,
-          layers,
-          activeLayerId,
           activeLayer,
           equationExampleId,
           activeEquation,
           setCustomPresetName,
-          setActiveLayerId,
           setActiveEquation,
           onPresetSelect,
           updateActiveLayer,
@@ -393,19 +383,16 @@ function App() {
           deleteCurrentCustomPreset,
           exportCustomPresets,
           importCustomPresets,
-          addLayer,
-          duplicateLayer,
-          removeLayer,
           applyEquationExample,
           insertSnippet,
           parseNumber,
         }}
         globalProps={{
-          uiMode,
           settings: globalSettings,
           selectedStylePresetId,
           onStylePresetSelect: applyStylePreset,
           updateSetting: updateGlobalSetting,
+          onRecenterCamera: () => setRecenterTick((value) => value + 1),
           parseNumber,
         }}
       />

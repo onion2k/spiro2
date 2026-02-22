@@ -15,6 +15,7 @@ export type SpiroRendererConfig = {
   compiledLayers: CompiledLayer[]
   isPaused: boolean
   resetTick: number
+  recenterTick: number
   mirrorX: boolean
   mirrorY: boolean
   rotationalRepeats: number
@@ -31,6 +32,7 @@ export type SpiroRendererConfig = {
   strokeWidthMode: StrokeWidthMode
   baseLineWidth: number
   lineWidthBoost: number
+  trailSmoothing: number
   dashedLines: boolean
   dashLength: number
   dashGap: number
@@ -39,6 +41,7 @@ export type SpiroRendererConfig = {
   threeSpriteSoftness: number
   autoRotateScene: boolean
   autoRotateSpeed: number
+  showDebugGeometry: boolean
   lineMaterialPreset: LineMaterialPresetId
   lineMaterialColor: string
   lineMaterialMetalness: number
