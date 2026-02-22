@@ -1,5 +1,3 @@
-import type { ChangeEvent } from 'react'
-
 import type { NoiseMode, StrokeWidthMode } from '@/spiro/types'
 import type { GlobalSettings } from '@/spiro/renderers/defaults'
 import type { LineMaterialPresetId, ThreeCameraMode, ThreeLineRenderMode } from '@/spiro/renderers/types'
@@ -17,17 +15,6 @@ export type GlobalControlsProps = {
   onStylePresetSelect: (presetId: string) => void
   updateSetting: <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => void
   onRecenterCamera: () => void
-  parseNumber: (value: string, fallback: number) => number
-}
-
-type NumericSettingKey = {
-  [K in keyof GlobalSettings]: GlobalSettings[K] extends number ? K : never
-}[keyof GlobalSettings]
-
-type NumericBounds = {
-  min?: number
-  max?: number
-  integer?: boolean
 }
 
 export function GlobalControls({
@@ -38,7 +25,6 @@ export function GlobalControls({
   onStylePresetSelect,
   updateSetting,
   onRecenterCamera,
-  parseNumber,
 }: GlobalControlsProps) {
   const {
     threeCameraMode,
@@ -72,36 +58,7 @@ export function GlobalControls({
     autoRotateSpeed,
     showDebugGeometry,
     lineMaterialPreset,
-    lineMaterialColor,
-    lineMaterialMetalness,
-    lineMaterialRoughness,
-    lineMaterialClearcoat,
-    lineMaterialClearcoatRoughness,
-    lineMaterialTransmission,
-    lineMaterialThickness,
-    lineMaterialIor,
   } = settings
-
-  const parseBoundedNumber = (value: string, fallback: number, bounds: NumericBounds = {}) => {
-    const { min, max, integer = false } = bounds
-    let next = parseNumber(value, fallback)
-    if (integer) {
-      next = Math.round(next)
-    }
-    if (typeof min === 'number') {
-      next = Math.max(min, next)
-    }
-    if (typeof max === 'number') {
-      next = Math.min(max, next)
-    }
-    return next
-  }
-
-  const onNumberChange =
-    <K extends NumericSettingKey>(key: K, fallback: number, bounds?: NumericBounds) =>
-    (event: ChangeEvent<HTMLInputElement>) => {
-      updateSetting(key, parseBoundedNumber(event.target.value, fallback, bounds) as GlobalSettings[K])
-    }
 
   const applyMaterialPreset = (presetId: Exclude<LineMaterialPresetId, 'custom'>) => {
     const preset = MATERIAL_PRESETS[presetId]
@@ -114,18 +71,6 @@ export function GlobalControls({
     updateSetting('lineMaterialTransmission', preset.lineMaterialTransmission)
     updateSetting('lineMaterialThickness', preset.lineMaterialThickness)
     updateSetting('lineMaterialIor', preset.lineMaterialIor)
-  }
-
-  const onMaterialNumberChange =
-    <K extends NumericSettingKey>(key: K, fallback: number, bounds?: NumericBounds) =>
-    (event: ChangeEvent<HTMLInputElement>) => {
-      updateSetting('lineMaterialPreset', 'custom')
-      updateSetting(key, parseBoundedNumber(event.target.value, fallback, bounds) as GlobalSettings[K])
-    }
-
-  const onMaterialColorChange = (event: ChangeEvent<HTMLInputElement>) => {
-    updateSetting('lineMaterialPreset', 'custom')
-    updateSetting('lineMaterialColor', event.target.value)
   }
 
   const showPatternSections = scope === 'pattern' || scope === 'all'
@@ -203,31 +148,29 @@ export function GlobalControls({
                 </Select>
               </div>
               <div className="field">
-                <label htmlFor="three-sprite-size">Sprite Size</label>
-                <input
+                <label htmlFor="three-sprite-size">Sprite Size ({threeSpriteSize.toFixed(2)})</label>
+                <Slider
                   id="three-sprite-size"
-                  type="number"
-                  title="Scale multiplier for instanced sprite quads."
-                  min="0.2"
-                  max="4"
-                  step="0.1"
-                  value={threeSpriteSize}
-                  onChange={onNumberChange('threeSpriteSize', threeSpriteSize, { min: 0.2, max: 4 })}
+                  min={0.2}
+                  max={4}
+                  step={0.1}
+                  value={[threeSpriteSize]}
+                  onValueChange={(value) => updateSetting('threeSpriteSize', value[0] ?? threeSpriteSize)}
                   disabled={threeLineRenderMode !== 'instanced-sprites'}
+                  aria-label="Sprite Size"
                 />
               </div>
               <div className="field">
-                <label htmlFor="three-sprite-softness">Sprite Softness</label>
-                <input
+                <label htmlFor="three-sprite-softness">Sprite Softness ({threeSpriteSoftness.toFixed(2)})</label>
+                <Slider
                   id="three-sprite-softness"
-                  type="number"
-                  title="Controls edge falloff softness for instanced sprites."
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={threeSpriteSoftness}
-                  onChange={onNumberChange('threeSpriteSoftness', threeSpriteSoftness, { min: 0, max: 1 })}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={[threeSpriteSoftness]}
+                  onValueChange={(value) => updateSetting('threeSpriteSoftness', value[0] ?? threeSpriteSoftness)}
                   disabled={threeLineRenderMode !== 'instanced-sprites'}
+                  aria-label="Sprite Softness"
                 />
               </div>
             </>
@@ -250,17 +193,16 @@ export function GlobalControls({
             />
           </div>
           <div className="field">
-            <label htmlFor="auto-rotate-speed">Auto Rotate Speed</label>
-            <input
+            <label htmlFor="auto-rotate-speed">Auto Rotate Speed ({autoRotateSpeed.toFixed(1)})</label>
+            <Slider
               id="auto-rotate-speed"
-              type="number"
-              title="OrbitControls auto-rotation speed."
-              min="-10"
-              max="10"
-              step="0.1"
-              value={autoRotateSpeed}
-              onChange={onNumberChange('autoRotateSpeed', autoRotateSpeed, { min: -10, max: 10 })}
+              min={-10}
+              max={10}
+              step={0.1}
+              value={[autoRotateSpeed]}
+              onValueChange={(value) => updateSetting('autoRotateSpeed', value[0] ?? autoRotateSpeed)}
               disabled={!autoRotateScene}
+              aria-label="Auto Rotate Speed"
             />
           </div>
         </div>
@@ -276,27 +218,27 @@ export function GlobalControls({
         <p className="section-help">Apply mirror and rotational symmetry to all active layers.</p>
         <div className="field-grid">
           <div className="field">
-            <label htmlFor="repeat">Rotational Repeats</label>
-            <input
+            <label htmlFor="repeat">Rotational Repeats ({rotationalRepeats})</label>
+            <Slider
               id="repeat"
-              type="number"
-              title="Number of rotated copies drawn around the center."
-              min="1"
-              max="16"
-              step="1"
-              value={rotationalRepeats}
-              onChange={onNumberChange('rotationalRepeats', rotationalRepeats, { min: 1, max: 16, integer: true })}
+              min={1}
+              max={16}
+              step={1}
+              value={[rotationalRepeats]}
+              onValueChange={(value) => updateSetting('rotationalRepeats', Math.round(value[0] ?? rotationalRepeats))}
+              aria-label="Rotational Repeats"
             />
           </div>
           <div className="field">
-            <label htmlFor="repeat-offset">Rotation Offset (deg)</label>
-            <input
+            <label htmlFor="repeat-offset">Rotation Offset (deg) ({rotationOffsetDeg.toFixed(0)})</label>
+            <Slider
               id="repeat-offset"
-              type="number"
-              title="Angular offset in degrees between repeated copies."
-              step="1"
-              value={rotationOffsetDeg}
-              onChange={onNumberChange('rotationOffsetDeg', rotationOffsetDeg)}
+              min={Math.min(-180, rotationOffsetDeg)}
+              max={Math.max(180, rotationOffsetDeg)}
+              step={1}
+              value={[rotationOffsetDeg]}
+              onValueChange={(value) => updateSetting('rotationOffsetDeg', value[0] ?? rotationOffsetDeg)}
+              aria-label="Rotation Offset"
             />
           </div>
           <div className="field checkbox-field">
@@ -315,36 +257,39 @@ export function GlobalControls({
         <p className="section-help">Animate variation in phase, frequency, amplitude, and procedural noise for organic motion.</p>
         <div className="field-grid">
           <div className="field">
-            <label htmlFor="phase-mod">Phase Mod</label>
-            <input
+            <label htmlFor="phase-mod">Phase Mod ({phaseMod.toFixed(2)})</label>
+            <Slider
               id="phase-mod"
-              type="number"
-              title="Phase offset modulation strength."
-              step="0.05"
-              value={phaseMod}
-              onChange={onNumberChange('phaseMod', phaseMod)}
+              min={Math.min(-2, phaseMod)}
+              max={Math.max(2, phaseMod)}
+              step={0.05}
+              value={[phaseMod]}
+              onValueChange={(value) => updateSetting('phaseMod', value[0] ?? phaseMod)}
+              aria-label="Phase Mod"
             />
           </div>
           <div className="field">
-            <label htmlFor="freq-mod">Frequency Mod</label>
-            <input
+            <label htmlFor="freq-mod">Frequency Mod ({frequencyMod.toFixed(2)})</label>
+            <Slider
               id="freq-mod"
-              type="number"
-              title="Frequency modulation strength."
-              step="0.05"
-              value={frequencyMod}
-              onChange={onNumberChange('frequencyMod', frequencyMod)}
+              min={Math.min(-2, frequencyMod)}
+              max={Math.max(2, frequencyMod)}
+              step={0.05}
+              value={[frequencyMod]}
+              onValueChange={(value) => updateSetting('frequencyMod', value[0] ?? frequencyMod)}
+              aria-label="Frequency Mod"
             />
           </div>
           <div className="field">
-            <label htmlFor="amp-mod">Amplitude Mod</label>
-            <input
+            <label htmlFor="amp-mod">Amplitude Mod ({amplitudeMod.toFixed(2)})</label>
+            <Slider
               id="amp-mod"
-              type="number"
-              title="Amplitude modulation strength."
-              step="0.05"
-              value={amplitudeMod}
-              onChange={onNumberChange('amplitudeMod', amplitudeMod)}
+              min={Math.min(-2, amplitudeMod)}
+              max={Math.max(2, amplitudeMod)}
+              step={0.05}
+              value={[amplitudeMod]}
+              onValueChange={(value) => updateSetting('amplitudeMod', value[0] ?? amplitudeMod)}
+              aria-label="Amplitude Mod"
             />
           </div>
           <div className="field">
@@ -374,55 +319,55 @@ export function GlobalControls({
             />
           </div>
           <div className="field">
-            <label htmlFor="noise-freq">Noise Frequency</label>
-            <input
+            <label htmlFor="noise-freq">Noise Frequency ({noiseFrequency.toFixed(2)})</label>
+            <Slider
               id="noise-freq"
-              type="number"
-              title="Spatial frequency of noise variation."
-              step="0.1"
-              min="0.1"
-              value={noiseFrequency}
-              onChange={onNumberChange('noiseFrequency', noiseFrequency, { min: 0.1 })}
+              min={0.1}
+              max={Math.max(10, noiseFrequency)}
+              step={0.1}
+              value={[noiseFrequency]}
+              onValueChange={(value) => updateSetting('noiseFrequency', value[0] ?? noiseFrequency)}
               disabled={noiseMode === 'off'}
+              aria-label="Noise Frequency"
             />
           </div>
           <div className="field">
-            <label htmlFor="noise-speed">Noise Speed</label>
-            <input
+            <label htmlFor="noise-speed">Noise Speed ({noiseSpeed.toFixed(2)})</label>
+            <Slider
               id="noise-speed"
-              type="number"
-              title="How quickly noise changes over time."
-              step="0.05"
-              min="0"
-              value={noiseSpeed}
-              onChange={onNumberChange('noiseSpeed', noiseSpeed, { min: 0 })}
+              min={0}
+              max={Math.max(5, noiseSpeed)}
+              step={0.05}
+              value={[noiseSpeed]}
+              onValueChange={(value) => updateSetting('noiseSpeed', value[0] ?? noiseSpeed)}
               disabled={noiseMode === 'off'}
+              aria-label="Noise Speed"
             />
           </div>
           <div className="field">
-            <label htmlFor="noise-oct">Noise Octaves</label>
-            <input
+            <label htmlFor="noise-oct">Noise Octaves ({noiseOctaves})</label>
+            <Slider
               id="noise-oct"
-              type="number"
-              title="Number of fractal layers for Flow noise."
-              min="1"
-              max="6"
-              step="1"
-              value={noiseOctaves}
-              onChange={onNumberChange('noiseOctaves', noiseOctaves, { min: 1, max: 6, integer: true })}
+              min={1}
+              max={6}
+              step={1}
+              value={[noiseOctaves]}
+              onValueChange={(value) => updateSetting('noiseOctaves', Math.round(value[0] ?? noiseOctaves))}
               disabled={noiseMode !== 'flow'}
+              aria-label="Noise Octaves"
             />
           </div>
           <div className="field">
-            <label htmlFor="noise-seed">Noise Seed</label>
-            <input
+            <label htmlFor="noise-seed">Noise Seed ({noiseSeed.toFixed(1)})</label>
+            <Slider
               id="noise-seed"
-              type="number"
-              title="Seed value for deterministic noise variation."
-              step="0.1"
-              value={noiseSeed}
-              onChange={onNumberChange('noiseSeed', noiseSeed)}
+              min={Math.min(-100, noiseSeed)}
+              max={Math.max(100, noiseSeed)}
+              step={0.1}
+              value={[noiseSeed]}
+              onValueChange={(value) => updateSetting('noiseSeed', value[0] ?? noiseSeed)}
               disabled={noiseMode === 'off'}
+              aria-label="Noise Seed"
             />
           </div>
         </div>
@@ -443,29 +388,28 @@ export function GlobalControls({
             />
           </div>
           <div className="field">
-            <label htmlFor="max-trail">Max Points Per Layer</label>
-            <input
+            <label htmlFor="max-trail">Max Trail Points ({maxTrailPointsPerLayer})</label>
+            <Slider
               id="max-trail"
-              type="number"
-              title="Hard cap for stored trail points per layer."
-              min="1000"
-              step="500"
-              value={maxTrailPointsPerLayer}
-              onChange={onNumberChange('maxTrailPointsPerLayer', maxTrailPointsPerLayer, { min: 1000, integer: true })}
+              min={1000}
+              max={Math.max(50000, maxTrailPointsPerLayer)}
+              step={500}
+              value={[maxTrailPointsPerLayer]}
+              onValueChange={(value) => updateSetting('maxTrailPointsPerLayer', Math.round(value[0] ?? maxTrailPointsPerLayer))}
+              aria-label="Max Trail Points"
             />
           </div>
           <div className="field">
-            <label htmlFor="max-step">Max Adaptive Skip</label>
-            <input
+            <label htmlFor="max-step">Max Adaptive Skip ({maxAdaptiveStep})</label>
+            <Slider
               id="max-step"
-              type="number"
-              title="Maximum point-skip factor when adaptive quality is enabled."
-              min="1"
-              max="8"
-              step="1"
-              value={maxAdaptiveStep}
-              onChange={onNumberChange('maxAdaptiveStep', maxAdaptiveStep, { min: 1, max: 8, integer: true })}
+              min={1}
+              max={8}
+              step={1}
+              value={[maxAdaptiveStep]}
+              onValueChange={(value) => updateSetting('maxAdaptiveStep', Math.round(value[0] ?? maxAdaptiveStep))}
               disabled={!adaptiveQuality}
+              aria-label="Max Adaptive Skip"
             />
           </div>
         </div>
@@ -493,7 +437,7 @@ export function GlobalControls({
             <Slider
               id="base-line-width"
               min={0.2}
-              max={Math.max(8, baseLineWidth)}
+              max={50}
               step={0.1}
               value={[baseLineWidth]}
               onValueChange={(value) => updateSetting('baseLineWidth', value[0] ?? baseLineWidth)}
@@ -501,15 +445,15 @@ export function GlobalControls({
             />
           </div>
           <div className="field">
-            <label htmlFor="line-width-boost">Width Boost</label>
-            <input
+            <label htmlFor="line-width-boost">Width Boost ({lineWidthBoost.toFixed(1)})</label>
+            <Slider
               id="line-width-boost"
-              type="number"
-              title="Extra width applied by dynamic width modes."
-              min="0"
-              step="0.1"
-              value={lineWidthBoost}
-              onChange={onNumberChange('lineWidthBoost', lineWidthBoost, { min: 0 })}
+              min={0}
+              max={Math.max(20, lineWidthBoost)}
+              step={0.1}
+              value={[lineWidthBoost]}
+              onValueChange={(value) => updateSetting('lineWidthBoost', value[0] ?? lineWidthBoost)}
+              aria-label="Width Boost"
             />
           </div>
           <div className="field">
@@ -535,29 +479,29 @@ export function GlobalControls({
             />
           </div>
           <div className="field">
-            <label htmlFor="dash-length">Dash Length</label>
-            <input
+            <label htmlFor="dash-length">Dash Length ({dashLength.toFixed(0)})</label>
+            <Slider
               id="dash-length"
-              type="number"
-              title="Length of visible dash segments."
-              min="1"
-              step="1"
-              value={dashLength}
-              onChange={onNumberChange('dashLength', dashLength, { min: 1 })}
+              min={1}
+              max={Math.max(100, dashLength)}
+              step={1}
+              value={[dashLength]}
+              onValueChange={(value) => updateSetting('dashLength', Math.round(value[0] ?? dashLength))}
               disabled={!dashedLines}
+              aria-label="Dash Length"
             />
           </div>
           <div className="field">
-            <label htmlFor="dash-gap">Dash Gap</label>
-            <input
+            <label htmlFor="dash-gap">Dash Gap ({dashGap.toFixed(0)})</label>
+            <Slider
               id="dash-gap"
-              type="number"
-              title="Gap length between dash segments."
-              min="0"
-              step="1"
-              value={dashGap}
-              onChange={onNumberChange('dashGap', dashGap, { min: 0 })}
+              min={0}
+              max={Math.max(100, dashGap)}
+              step={1}
+              value={[dashGap]}
+              onValueChange={(value) => updateSetting('dashGap', Math.round(value[0] ?? dashGap))}
               disabled={!dashedLines}
+              aria-label="Dash Gap"
             />
           </div>
         </div>
@@ -565,19 +509,15 @@ export function GlobalControls({
 
       {showRenderingSections && uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Line Material</h3>
-        <p className="section-help">Configure physical material properties for fat-line rendering.</p>
+        <p className="section-help">Choose a bundled physical material setup for fat-line rendering.</p>
         <div className="field-grid">
           <div className="field">
             <label htmlFor="line-material-preset">Material Preset</label>
             <Select
-              value={lineMaterialPreset}
+              value={lineMaterialPreset === 'custom' ? 'matte-ribbon' : lineMaterialPreset}
               onValueChange={(value) => {
-                const presetId = value as LineMaterialPresetId
-                if (presetId === 'custom') {
-                  updateSetting('lineMaterialPreset', 'custom')
-                } else {
-                  applyMaterialPreset(presetId)
-                }
+                const presetId = value as Exclude<LineMaterialPresetId, 'custom'>
+                applyMaterialPreset(presetId)
               }}
               disabled={threeLineRenderMode !== 'fat-lines'}
             >
@@ -590,123 +530,8 @@ export function GlobalControls({
                 <SelectItem value="brushed-metal">Brushed Metal</SelectItem>
                 <SelectItem value="chrome">Chrome</SelectItem>
                 <SelectItem value="frosted-glass">Frosted Glass</SelectItem>
-                <SelectItem value="custom">Custom</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-          <div className="field">
-            <label htmlFor="line-material-color">Line Color</label>
-            <input
-              id="line-material-color"
-              type="color"
-              title="Base tint for ribbon material (multiplies with animated vertex color)."
-              value={lineMaterialColor}
-              onChange={onMaterialColorChange}
-              disabled={threeLineRenderMode !== 'fat-lines'}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="line-material-metalness">Line Metalness</label>
-            <input
-              id="line-material-metalness"
-              type="number"
-              title="Physical material metalness for ribbon lines."
-              min="0"
-              max="1"
-              step="0.05"
-              value={lineMaterialMetalness}
-              onChange={onMaterialNumberChange('lineMaterialMetalness', lineMaterialMetalness, { min: 0, max: 1 })}
-              disabled={threeLineRenderMode !== 'fat-lines'}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="line-material-roughness">Line Roughness</label>
-            <input
-              id="line-material-roughness"
-              type="number"
-              title="Physical material roughness for ribbon lines."
-              min="0"
-              max="1"
-              step="0.05"
-              value={lineMaterialRoughness}
-              onChange={onMaterialNumberChange('lineMaterialRoughness', lineMaterialRoughness, { min: 0, max: 1 })}
-              disabled={threeLineRenderMode !== 'fat-lines'}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="line-material-clearcoat">Line Clearcoat</label>
-            <input
-              id="line-material-clearcoat"
-              type="number"
-              title="Additional clearcoat layer intensity for ribbon material."
-              min="0"
-              max="1"
-              step="0.05"
-              value={lineMaterialClearcoat}
-              onChange={onMaterialNumberChange('lineMaterialClearcoat', lineMaterialClearcoat, { min: 0, max: 1 })}
-              disabled={threeLineRenderMode !== 'fat-lines'}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="line-material-clearcoat-roughness">Clearcoat Roughness</label>
-            <input
-              id="line-material-clearcoat-roughness"
-              type="number"
-              title="Roughness of the ribbon clearcoat layer."
-              min="0"
-              max="1"
-              step="0.05"
-              value={lineMaterialClearcoatRoughness}
-              onChange={onMaterialNumberChange('lineMaterialClearcoatRoughness', lineMaterialClearcoatRoughness, {
-                min: 0,
-                max: 1,
-              })}
-              disabled={threeLineRenderMode !== 'fat-lines'}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="line-material-transmission">Line Transmission</label>
-            <input
-              id="line-material-transmission"
-              type="number"
-              title="Transparency transmission for ribbon material."
-              min="0"
-              max="1"
-              step="0.05"
-              value={lineMaterialTransmission}
-              onChange={onMaterialNumberChange('lineMaterialTransmission', lineMaterialTransmission, {
-                min: 0,
-                max: 1,
-              })}
-              disabled={threeLineRenderMode !== 'fat-lines'}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="line-material-thickness">Line Thickness</label>
-            <input
-              id="line-material-thickness"
-              type="number"
-              title="Optical thickness used by physical transmission."
-              min="0"
-              step="0.05"
-              value={lineMaterialThickness}
-              onChange={onMaterialNumberChange('lineMaterialThickness', lineMaterialThickness, { min: 0 })}
-              disabled={threeLineRenderMode !== 'fat-lines'}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="line-material-ior">Line IOR</label>
-            <input
-              id="line-material-ior"
-              type="number"
-              title="Index of refraction for ribbon material."
-              min="1"
-              max="2.333"
-              step="0.01"
-              value={lineMaterialIor}
-              onChange={onMaterialNumberChange('lineMaterialIor', lineMaterialIor, { min: 1, max: 2.333 })}
-              disabled={threeLineRenderMode !== 'fat-lines'}
-            />
           </div>
         </div>
       </section> : null}

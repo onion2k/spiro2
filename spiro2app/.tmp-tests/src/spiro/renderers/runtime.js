@@ -94,7 +94,7 @@ export function stepRuntime(options) {
                     }
                     const modX = point.x * amplitudeScaleX + wobbleX;
                     const modY = point.y * amplitudeScaleY + wobbleY;
-                    const modZ = point.z * layer.zScale;
+                    const modZ = point.z;
                     const maxRange = Math.max(1, Math.abs(layer.R - layer.r) + Math.abs(layer.d));
                     const scale = (Math.min(width, height) * 0.46) / maxRange;
                     const x = center.x + modX * scale;

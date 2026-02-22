@@ -30,7 +30,6 @@ export type LayerControlsProps = {
   importCustomPresets: () => void
   applyEquationExample: (id: string) => void
   insertSnippet: (snippet: string) => void
-  parseNumber: (value: string, fallback: number) => number
 }
 
 export function LayerControls({
@@ -59,7 +58,6 @@ export function LayerControls({
   importCustomPresets,
   applyEquationExample,
   insertSnippet,
-  parseNumber,
 }: LayerControlsProps) {
   const showBasicCurveFields = curveScope !== 'advanced-only'
   const showAdvancedCurveFields = uiMode === 'advanced' && curveScope !== 'basic-only'
@@ -67,6 +65,16 @@ export function LayerControls({
   const showPresetManagement = uiMode === 'advanced' && presetMode !== 'picker-only'
   const showCoreSections = showNonPresetSections && sectionScope !== 'color-only'
   const showColorSection = uiMode === 'advanced' && sectionScope !== 'non-color'
+  const layerR = activeLayer?.R ?? 0
+  const layerSmallR = activeLayer?.r ?? 0
+  const layerD = activeLayer?.d ?? 0
+  const layerSpeed = activeLayer?.speed ?? 0
+  const layerMultiLineCount = activeLayer?.multiLineCount ?? 1
+  const layerMultiLineSpread = activeLayer?.multiLineSpread ?? 14
+  const layerMultiLineMotionSpeed = activeLayer?.multiLineMotionSpeed ?? 1
+  const layerUSpeed = activeLayer?.uSpeed ?? 0
+  const layerLineLifetime = activeLayer?.lineLifetime ?? 0.2
+  const layerBaseHue = activeLayer?.baseHue ?? 210
 
   return (
     <section className="control-group" aria-label="Layer Controls">
@@ -232,45 +240,50 @@ export function LayerControls({
           {showBasicCurveFields ? (
             <>
               <div className="field">
-                <label htmlFor="r-big">R (Outer Radius)</label>
-                <input
+                <label htmlFor="r-big">R (Outer Radius) ({layerR.toFixed(1)})</label>
+                <Slider
                   id="r-big"
-                  type="number"
-                  title="Main radius in classic spirograph equations."
-                  step="0.2"
-                  value={activeLayer?.R ?? 0}
-                  onChange={(event) => updateActiveLayer({ R: parseNumber(event.target.value, activeLayer?.R ?? 0) })}
+                  min={Math.min(-20, layerR)}
+                  max={Math.max(20, layerR)}
+                  step={0.2}
+                  value={[layerR]}
+                  onValueChange={(value) => updateActiveLayer({ R: value[0] ?? layerR })}
+                  aria-label="R (Outer Radius)"
                 />
               </div>
               <div className="field">
-                <label htmlFor="r-small">r (Inner Radius)</label>
-                <input
+                <label htmlFor="r-small">r (Inner Radius) ({layerSmallR.toFixed(1)})</label>
+                <Slider
                   id="r-small"
-                  type="number"
-                  title="Secondary radius; ratio R/r strongly affects pattern repetition."
-                  value={activeLayer?.r ?? 0}
-                  onChange={(event) => updateActiveLayer({ r: parseNumber(event.target.value, activeLayer?.r ?? 0) })}
+                  min={Math.min(-20, layerSmallR)}
+                  max={Math.max(20, layerSmallR)}
+                  step={0.1}
+                  value={[layerSmallR]}
+                  onValueChange={(value) => updateActiveLayer({ r: value[0] ?? layerSmallR })}
+                  aria-label="r (Inner Radius)"
                 />
               </div>
               <div className="field">
-                <label htmlFor="offset">d (Pen Offset)</label>
-                <input
+                <label htmlFor="offset">d (Pen Offset) ({layerD.toFixed(1)})</label>
+                <Slider
                   id="offset"
-                  type="number"
-                  title="Distance from the moving center to drawing point."
-                  value={activeLayer?.d ?? 0}
-                  onChange={(event) => updateActiveLayer({ d: parseNumber(event.target.value, activeLayer?.d ?? 0) })}
+                  min={Math.min(-20, layerD)}
+                  max={Math.max(20, layerD)}
+                  step={0.1}
+                  value={[layerD]}
+                  onValueChange={(value) => updateActiveLayer({ d: value[0] ?? layerD })}
+                  aria-label="d (Pen Offset)"
                 />
               </div>
               <div className="field">
-                <label htmlFor="speed">Speed ({(activeLayer?.speed ?? 0).toFixed(1)})</label>
+                <label htmlFor="speed">Speed ({layerSpeed.toFixed(1)})</label>
                 <Slider
                   id="speed"
                   min={0}
-                  max={Math.max(8, activeLayer?.speed ?? 0)}
+                  max={Math.max(8, layerSpeed)}
                   step={0.1}
-                  value={[activeLayer?.speed ?? 0]}
-                  onValueChange={(value) => updateActiveLayer({ speed: value[0] ?? (activeLayer?.speed ?? 0) })}
+                  value={[layerSpeed]}
+                  onValueChange={(value) => updateActiveLayer({ speed: value[0] ?? layerSpeed })}
                   aria-label="Speed"
                 />
               </div>
@@ -280,42 +293,28 @@ export function LayerControls({
           {showAdvancedCurveFields ? (
             <>
               <div className="field">
-                <label htmlFor="u-speed">u Speed</label>
-                <input
+                <label htmlFor="u-speed">u Speed ({layerUSpeed.toFixed(2)})</label>
+                <Slider
                   id="u-speed"
-                  type="number"
-                  title="How fast parameter u advances."
-                  step="0.05"
-                  value={activeLayer?.uSpeed ?? 0}
-                  onChange={(event) => updateActiveLayer({ uSpeed: parseNumber(event.target.value, activeLayer?.uSpeed ?? 0) })}
+                  min={Math.min(-4, layerUSpeed)}
+                  max={Math.max(4, layerUSpeed)}
+                  step={0.05}
+                  value={[layerUSpeed]}
+                  onValueChange={(value) => updateActiveLayer({ uSpeed: value[0] ?? layerUSpeed })}
+                  aria-label="u Speed"
                 />
               </div>
               <div className="field">
-                <label htmlFor="z-scale">Z Scale</label>
-                <input
-                  id="z-scale"
-                  type="number"
-                  title="Scales z(t,u) depth contribution for 3D renderers."
-                  step="0.05"
-                  value={activeLayer?.zScale ?? 0.6}
-                  onChange={(event) => updateActiveLayer({ zScale: parseNumber(event.target.value, activeLayer?.zScale ?? 0.6) })}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="line-life">Lifetime (s)</label>
-                <input
+                <label htmlFor="line-life">Lifetime (s) ({layerLineLifetime.toFixed(1)})</label>
+                <Slider
                   id="line-life"
-                  type="number"
-                  title="Trail duration in seconds when Forever is disabled."
-                  min="0.2"
-                  step="0.2"
-                  value={activeLayer?.lineLifetime ?? 0.2}
-                  onChange={(event) =>
-                    updateActiveLayer({
-                      lineLifetime: Math.max(0.2, parseNumber(event.target.value, activeLayer?.lineLifetime ?? 0.2)),
-                    })
-                  }
+                  min={0.2}
+                  max={Math.max(60, layerLineLifetime)}
+                  step={0.2}
+                  value={[layerLineLifetime]}
+                  onValueChange={(value) => updateActiveLayer({ lineLifetime: Math.max(0.2, value[0] ?? layerLineLifetime) })}
                   disabled={activeLayer?.lineForever ?? false}
+                  aria-label="Lifetime"
                 />
               </div>
               <div className="field checkbox-field">
@@ -333,20 +332,15 @@ export function LayerControls({
           {showBasicCurveFields ? (
             <>
               <div className="field">
-                <label htmlFor="multi-line-count">Line Copies</label>
-                <input
+                <label htmlFor="multi-line-count">Line Copies ({layerMultiLineCount})</label>
+                <Slider
                   id="multi-line-count"
-                  type="number"
-                  title="Draw several line copies around each sampled particle point."
-                  min="1"
-                  max="16"
-                  step="1"
-                  value={activeLayer?.multiLineCount ?? 1}
-                  onChange={(event) =>
-                    updateActiveLayer({
-                      multiLineCount: Math.max(1, Math.min(16, Math.round(parseNumber(event.target.value, activeLayer?.multiLineCount ?? 1)))),
-                    })
-                  }
+                  min={1}
+                  max={16}
+                  step={1}
+                  value={[layerMultiLineCount]}
+                  onValueChange={(value) => updateActiveLayer({ multiLineCount: Math.round(value[0] ?? layerMultiLineCount) })}
+                  aria-label="Line Copies"
                 />
               </div>
               <div className="field">
@@ -366,30 +360,27 @@ export function LayerControls({
                 </Select>
               </div>
               <div className="field">
-                <label htmlFor="multi-line-spread">Line Spread (px)</label>
-                <input
+                <label htmlFor="multi-line-spread">Line Spread (px) ({layerMultiLineSpread.toFixed(0)})</label>
+                <Slider
                   id="multi-line-spread"
-                  type="number"
-                  title="Distance from the particle point used by line copies."
-                  min="0"
-                  step="1"
-                  value={activeLayer?.multiLineSpread ?? 14}
-                  onChange={(event) =>
-                    updateActiveLayer({ multiLineSpread: Math.max(0, parseNumber(event.target.value, activeLayer?.multiLineSpread ?? 14)) })
-                  }
+                  min={0}
+                  max={Math.max(80, layerMultiLineSpread)}
+                  step={1}
+                  value={[layerMultiLineSpread]}
+                  onValueChange={(value) => updateActiveLayer({ multiLineSpread: Math.max(0, value[0] ?? layerMultiLineSpread) })}
+                  aria-label="Line Spread"
                 />
               </div>
               <div className="field">
-                <label htmlFor="multi-line-motion-speed">Motion Speed</label>
-                <input
+                <label htmlFor="multi-line-motion-speed">Motion Speed ({layerMultiLineMotionSpeed.toFixed(1)})</label>
+                <Slider
                   id="multi-line-motion-speed"
-                  type="number"
-                  title="Angular speed for orbit/random motion of line copies."
-                  step="0.1"
-                  value={activeLayer?.multiLineMotionSpeed ?? 1}
-                  onChange={(event) =>
-                    updateActiveLayer({ multiLineMotionSpeed: parseNumber(event.target.value, activeLayer?.multiLineMotionSpeed ?? 1) })
-                  }
+                  min={0}
+                  max={Math.max(6, layerMultiLineMotionSpeed)}
+                  step={0.1}
+                  value={[layerMultiLineMotionSpeed]}
+                  onValueChange={(value) => updateActiveLayer({ multiLineMotionSpeed: value[0] ?? layerMultiLineMotionSpeed })}
+                  aria-label="Motion Speed"
                 />
               </div>
             </>
@@ -448,17 +439,16 @@ export function LayerControls({
             />
           </div>
           <div className="field">
-            <label htmlFor="base-hue">Base Hue</label>
-            <input
+            <label htmlFor="base-hue">Base Hue ({layerBaseHue.toFixed(0)})</label>
+            <Slider
               id="base-hue"
-              type="number"
-              title="Hue angle (0-360) applied when Hue Lock is enabled."
-              min="0"
-              max="360"
-              step="1"
-              value={activeLayer?.baseHue ?? 210}
-              onChange={(event) => updateActiveLayer({ baseHue: parseNumber(event.target.value, activeLayer?.baseHue ?? 210) })}
+              min={0}
+              max={360}
+              step={1}
+              value={[layerBaseHue]}
+              onValueChange={(value) => updateActiveLayer({ baseHue: value[0] ?? layerBaseHue })}
               disabled={!(activeLayer?.hueLock ?? false)}
+              aria-label="Base Hue"
             />
           </div>
         </div>

@@ -127,10 +127,6 @@ function App() {
     [compiledLayers, activeLayer]
   )
 
-  const parseNumber = (value: string, fallback: number) => {
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : fallback
-  }
   const activeCustomPreset = useMemo(() => {
     if (!selectedPresetId.startsWith('custom:')) {
       return null
@@ -309,7 +305,6 @@ function App() {
       R: preset.R,
       r: preset.r,
       d: preset.d,
-      zScale: preset.zScale ?? (activeLayer?.zScale ?? 0.6),
       speed: preset.speed,
       uSpeed: preset.uSpeed ?? 0.4,
       lineLifetime: preset.lineLifetime,
@@ -385,7 +380,6 @@ function App() {
           importCustomPresets,
           applyEquationExample,
           insertSnippet,
-          parseNumber,
         }}
         globalProps={{
           settings: globalSettings,
@@ -393,7 +387,6 @@ function App() {
           onStylePresetSelect: applyStylePreset,
           updateSetting: updateGlobalSetting,
           onRecenterCamera: () => setRecenterTick((value) => value + 1),
-          parseNumber,
         }}
       />
     </main>

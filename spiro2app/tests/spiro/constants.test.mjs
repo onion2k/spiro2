@@ -10,5 +10,4 @@ test('createLayerFromPreset keeps key preset values', () => {
   const layer = createLayerFromPreset(preset, 'layer-1', 'Layer 1')
   assert.equal(layer.pointSize, preset.pointSize)
   assert.equal(layer.exprZ, preset.exprZ ?? '0')
-  assert.equal(layer.zScale, preset.zScale ?? 1.0)
 })

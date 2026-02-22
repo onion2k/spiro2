@@ -16,7 +16,6 @@ export type LayerConfig = {
   R: number
   r: number
   d: number
-  zScale: number
   speed: number
   uSpeed: number
   lineLifetime: number
@@ -53,7 +52,6 @@ export type Preset = {
   R: number
   r: number
   d: number
-  zScale?: number
   speed: number
   uSpeed?: number
   lineLifetime: number

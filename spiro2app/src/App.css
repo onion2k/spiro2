@@ -140,6 +140,10 @@
   box-shadow: none;
 }
 
+.field [data-slot='slider'] {
+  margin-block: 10px;
+}
+
 .field select {
   appearance: auto;
   -webkit-appearance: menulist;

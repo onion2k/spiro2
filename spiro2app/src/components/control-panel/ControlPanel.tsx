@@ -76,9 +76,6 @@ export function ControlPanel({
             >
               {uiMinimized ? 'Expand UI' : 'Minimize UI'}
             </Button>
-            <Button type="button" size="sm" variant="secondary" className="mobile-panel-close" onClick={() => setMobilePanelOpen(false)}>
-              Pattern
-            </Button>
           </div>
 
           {!uiMinimized && (
