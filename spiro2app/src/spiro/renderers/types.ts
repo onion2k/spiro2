@@ -1,7 +1,7 @@
 import type { LayerConfig, NoiseMode, StrokeWidthMode } from '../types'
 
 export type ThreeCameraMode = 'orthographic' | 'perspective'
-export type ThreeLineRenderMode = 'fat-lines' | 'instanced-sprites'
+export type ThreeLineRenderMode = 'fat-lines' | 'instanced-sprites' | 'tube-mesh'
 export type GlobalDrawMode = 'lines'
 export type LineMaterialPresetId = 'matte-ribbon' | 'satin-plastic' | 'brushed-metal' | 'chrome' | 'frosted-glass' | 'custom'
 
@@ -54,8 +54,6 @@ export type SpiroRendererConfig = {
   threeCameraMode: ThreeCameraMode
   threeLineRenderMode: ThreeLineRenderMode
   maxTrailPointsPerLayer: number
-  adaptiveQuality: boolean
-  maxAdaptiveStep: number
 }
 
 export type RendererHudStats = {

@@ -80,8 +80,6 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     lineMaterialThickness,
     lineMaterialIor,
     maxTrailPointsPerLayer,
-    adaptiveQuality,
-    maxAdaptiveStep,
     onHudStats,
   } = options
   const recenterTickRef = useRef(recenterTick)
@@ -108,7 +106,9 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
         import('three/examples/jsm/controls/OrbitControls.js'),
         threeLineRenderMode === 'instanced-sprites'
           ? import('./three/renderInstancedSprites')
-          : import('./three/renderFatLines'),
+          : threeLineRenderMode === 'tube-mesh'
+            ? import('./three/renderTubeMeshes')
+            : import('./three/renderFatLines'),
       ])
 
       if (disposed) {
@@ -121,6 +121,8 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
         threeLineRenderMode === 'instanced-sprites' && 'renderInstancedSprites' in renderModules
           ? renderModules.renderInstancedSprites
           : null
+      const renderTubeMeshesFn =
+        threeLineRenderMode === 'tube-mesh' && 'renderTubeMeshes' in renderModules ? renderModules.renderTubeMeshes : null
       const disposeSpriteBatchMeshFn =
         threeLineRenderMode === 'instanced-sprites' && 'disposeSpriteBatchMesh' in renderModules
           ? renderModules.disposeSpriteBatchMesh
@@ -131,7 +133,7 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
       renderer.setClearColor(0x020617, 1)
       renderer.setPixelRatio(window.devicePixelRatio || 1)
       renderer.toneMapping = ACESFilmicToneMapping
-      renderer.toneMappingExposure = 1.2
+      renderer.toneMappingExposure = threeLineRenderMode === 'tube-mesh' ? 1.36 : 1.2
       renderer.domElement.style.display = 'block'
       renderer.domElement.style.width = '100%'
       renderer.domElement.style.height = '100%'
@@ -142,14 +144,14 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
       // Keep blur sigma conservative to avoid THREE.sigmaRadians sample clipping warnings.
       const environmentMap = pmremGenerator.fromScene(new RoomEnvironment(), 0.03).texture
       scene.environment = environmentMap
-      const ambientLight = new AmbientLight(0xffffff, 0.72)
-      const skyFill = new HemisphereLight(0xd6e6ff, 0x111827, 0.55)
-      const keyLight = new DirectionalLight(0xffffff, 2.2)
-      keyLight.position.set(2200, 2400, 2800)
-      const fillLight = new DirectionalLight(0xaec8ff, 1.1)
-      fillLight.position.set(-1900, -1400, 2100)
-      const rimLight = new DirectionalLight(0xfff1da, 0.75)
-      rimLight.position.set(0, 1800, -2400)
+      const ambientLight = new AmbientLight(0xffffff, threeLineRenderMode === 'tube-mesh' ? 0.36 : 0.28)
+      const skyFill = new HemisphereLight(0xd6e6ff, 0x111827, 0.26)
+      const keyLight = new DirectionalLight(0xffffff, threeLineRenderMode === 'tube-mesh' ? 3.5 : 2.9)
+      keyLight.position.set(2600, 2100, 3000)
+      const fillLight = new DirectionalLight(0xaec8ff, 0.65)
+      fillLight.position.set(-2100, -1600, 1400)
+      const rimLight = new DirectionalLight(0xfff1da, threeLineRenderMode === 'tube-mesh' ? 1.9 : 1.45)
+      rimLight.position.set(-300, 2300, -3100)
       scene.add(ambientLight, skyFill, keyLight, fillLight, rimLight)
       const drawGroup = new Group()
       scene.add(drawGroup)
@@ -239,8 +241,8 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
       controls.autoRotate = autoRotateScene
       controls.autoRotateSpeed = autoRotateSpeed
 
-      let userInteracted = false
-      controls.enabled = false
+      let userInteracted = autoRotateScene
+      controls.enabled = autoRotateScene
       const onFirstPointerDown = () => {
         userInteracted = true
         controls.enabled = true
@@ -255,6 +257,9 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
 
       const runtime = createRuntimeState(layers, compiledLayers)
       const spriteMeshByLayer = new Map<string, NonNullable<ReturnType<NonNullable<typeof renderInstancedSpritesFn>>>>()
+      let staticTubeReady = false
+      let staticTubeTrailPoints = 0
+      let staticTubeLineObjects = 0
       let animationFrame = 0
       let lastWidth = 0
       let lastHeight = 0
@@ -321,108 +326,200 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
           }
         }
 
-        const { center, nowSec } = stepRuntime({
-          state: runtime,
-          layers,
-          compiledLayers,
-          isPaused,
-          amplitudeMod,
-          frequencyMod,
-          phaseMod,
-          noiseMode,
-          noiseAmount,
-          noiseFrequency,
-          noiseSpeed,
-          noiseOctaves,
-          noiseSeed,
-          maxTrailPointsPerLayer,
-          adaptiveQuality,
-          maxAdaptiveStep,
-          timeMs,
-          width,
-          height,
-        })
-
-        clearGroup(drawGroup)
         let trailPoints = 0
         let pointVertices = 0
         let instancedSprites = 0
         let lineObjects = 0
         const activeSpriteLayerIds = new Set<string>()
-
-        for (const runtimeLayer of runtime.runtimeLayers) {
-          const layer = runtimeLayer.layer
-          if (!layer.visible || runtimeLayer.trail.length === 0) {
-            continue
-          }
-          trailPoints += runtimeLayer.trail.length
-          const step = runtimeLayer.trail.length > 3000 ? Math.ceil(runtimeLayer.trail.length / 3000) : 1
-          if (threeLineRenderMode === 'instanced-sprites' && renderInstancedSpritesFn) {
-            const sprites = renderInstancedSpritesFn({
-              runtimeLayer,
-              center,
-              nowSec,
-              width,
-              height,
-              step,
-              camera,
-              spriteGeometry,
-              spriteTexture,
-              spriteSizeScale: threeSpriteSize,
-              spriteSoftness: threeSpriteSoftness,
-              mirrorX,
-              mirrorY,
-              rotationalRepeats,
-              rotationOffsetDeg,
-              strokeWidthMode,
-              baseLineWidth,
-              lineWidthBoost,
-              trailSmoothing,
-              dashedLines,
-              dashLength,
-              dashGap,
-              existingMesh: spriteMeshByLayer.get(runtimeLayer.layer.id) ?? undefined,
-            })
-            if (sprites) {
-              activeSpriteLayerIds.add(runtimeLayer.layer.id)
-              spriteMeshByLayer.set(runtimeLayer.layer.id, sprites)
-              const spriteCount =
-                typeof sprites.userData?.spriteInstanceCount === 'number' ? sprites.userData.spriteInstanceCount : 0
-              instancedSprites += spriteCount
-              lineObjects += 1
-              drawGroup.add(sprites)
+        if (threeLineRenderMode === 'tube-mesh' && renderTubeMeshesFn) {
+          if (!staticTubeReady) {
+            const staticLayers = layers.map((layer) => ({ ...layer, lineForever: true }))
+            for (const runtimeLayer of runtime.runtimeLayers) {
+              runtimeLayer.paramT = 0
+              runtimeLayer.paramU = 0
+              runtimeLayer.previous = null
+              runtimeLayer.previousDirection = null
+              runtimeLayer.trail = []
+              runtimeLayer.pointIndex = 0
             }
-          } else if (threeLineRenderMode === 'fat-lines' && renderFatLinesFn) {
-            const fatLines = renderFatLinesFn({
-              runtimeLayer,
-              center,
-              nowSec,
+            runtime.prevTimeMs = 0
+            const sampleCount = Math.max(1200, Math.min(maxTrailPointsPerLayer, 30000))
+            const sampleStepMs = 1000 / 120
+            let sampleTimeMs = 0
+            for (let i = 0; i < sampleCount; i += 1) {
+              sampleTimeMs += sampleStepMs
+              stepRuntime({
+                state: runtime,
+                layers: staticLayers,
+                compiledLayers,
+                isPaused: false,
+                amplitudeMod,
+                frequencyMod,
+                phaseMod,
+                noiseMode,
+                noiseAmount,
+                noiseFrequency,
+                noiseSpeed,
+                noiseOctaves,
+                noiseSeed,
+                maxTrailPointsPerLayer,
+                timeMs: sampleTimeMs,
+                width,
+                height,
+              })
+            }
+            const { center } = stepRuntime({
+              state: runtime,
+              layers: staticLayers,
+              compiledLayers,
+              isPaused: true,
+              amplitudeMod,
+              frequencyMod,
+              phaseMod,
+              noiseMode,
+              noiseAmount,
+              noiseFrequency,
+              noiseSpeed,
+              noiseOctaves,
+              noiseSeed,
+              maxTrailPointsPerLayer,
+              timeMs: sampleTimeMs,
               width,
               height,
-              step,
-              mirrorX,
-              mirrorY,
-              rotationalRepeats,
-              rotationOffsetDeg,
-              strokeWidthMode,
-              baseLineWidth,
-              lineWidthBoost,
-              trailSmoothing,
-              dashedLines,
-              dashLength,
-              dashGap,
-              lineMaterialColor,
-              lineMaterialMetalness,
-              lineMaterialRoughness,
-              lineMaterialClearcoat,
-              lineMaterialClearcoatRoughness,
-              lineMaterialTransmission,
-              lineMaterialThickness,
-              lineMaterialIor,
             })
-            lineObjects += fatLines.length
-            for (const line of fatLines) {
-              drawGroup.add(line)
+
+            clearGroup(drawGroup)
+            for (const runtimeLayer of runtime.runtimeLayers) {
+              if (!runtimeLayer.layer.visible || runtimeLayer.trail.length === 0) {
+                continue
+              }
+              trailPoints += runtimeLayer.trail.length
+              const step = runtimeLayer.trail.length > 15000 ? Math.ceil(runtimeLayer.trail.length / 15000) : 1
+              const tubeMeshes = renderTubeMeshesFn({
+                runtimeLayer,
+                center,
+                step,
+                mirrorX,
+                mirrorY,
+                rotationalRepeats,
+                rotationOffsetDeg,
+                baseLineWidth,
+                lineWidthBoost,
+                trailSmoothing,
+                lineMaterialColor,
+                lineMaterialMetalness,
+                lineMaterialRoughness,
+                lineMaterialClearcoat,
+                lineMaterialClearcoatRoughness,
+              })
+              lineObjects += tubeMeshes.length
+              for (const tube of tubeMeshes) {
+                drawGroup.add(tube)
+              }
+            }
+            staticTubeTrailPoints = trailPoints
+            staticTubeLineObjects = lineObjects
+            staticTubeReady = true
+          } else {
+            trailPoints = staticTubeTrailPoints
+            lineObjects = staticTubeLineObjects
+          }
+        } else {
+          const { center, nowSec } = stepRuntime({
+            state: runtime,
+            layers,
+            compiledLayers,
+            isPaused,
+            amplitudeMod,
+            frequencyMod,
+            phaseMod,
+            noiseMode,
+            noiseAmount,
+            noiseFrequency,
+            noiseSpeed,
+            noiseOctaves,
+            noiseSeed,
+            maxTrailPointsPerLayer,
+            timeMs,
+            width,
+            height,
+          })
+          clearGroup(drawGroup)
+
+          for (const runtimeLayer of runtime.runtimeLayers) {
+            const layer = runtimeLayer.layer
+            if (!layer.visible || runtimeLayer.trail.length === 0) {
+              continue
+            }
+            trailPoints += runtimeLayer.trail.length
+            const step = runtimeLayer.trail.length > 3000 ? Math.ceil(runtimeLayer.trail.length / 3000) : 1
+            if (threeLineRenderMode === 'instanced-sprites' && renderInstancedSpritesFn) {
+              const sprites = renderInstancedSpritesFn({
+                runtimeLayer,
+                center,
+                nowSec,
+                width,
+                height,
+                step,
+                camera,
+                spriteGeometry,
+                spriteTexture,
+                spriteSizeScale: threeSpriteSize,
+                spriteSoftness: threeSpriteSoftness,
+                mirrorX,
+                mirrorY,
+                rotationalRepeats,
+                rotationOffsetDeg,
+                strokeWidthMode,
+                baseLineWidth,
+                lineWidthBoost,
+                trailSmoothing,
+                dashedLines,
+                dashLength,
+                dashGap,
+                existingMesh: spriteMeshByLayer.get(runtimeLayer.layer.id) ?? undefined,
+              })
+              if (sprites) {
+                activeSpriteLayerIds.add(runtimeLayer.layer.id)
+                spriteMeshByLayer.set(runtimeLayer.layer.id, sprites)
+                const spriteCount =
+                  typeof sprites.userData?.spriteInstanceCount === 'number' ? sprites.userData.spriteInstanceCount : 0
+                instancedSprites += spriteCount
+                lineObjects += 1
+                drawGroup.add(sprites)
+              }
+            } else if (threeLineRenderMode === 'fat-lines' && renderFatLinesFn) {
+              const fatLines = renderFatLinesFn({
+                runtimeLayer,
+                center,
+                nowSec,
+                width,
+                height,
+                step,
+                mirrorX,
+                mirrorY,
+                rotationalRepeats,
+                rotationOffsetDeg,
+                strokeWidthMode,
+                baseLineWidth,
+                lineWidthBoost,
+                trailSmoothing,
+                dashedLines,
+                dashLength,
+                dashGap,
+                lineMaterialColor,
+                lineMaterialMetalness,
+                lineMaterialRoughness,
+                lineMaterialClearcoat,
+                lineMaterialClearcoatRoughness,
+                lineMaterialTransmission,
+                lineMaterialThickness,
+                lineMaterialIor,
+              })
+              lineObjects += fatLines.length
+              for (const line of fatLines) {
+                drawGroup.add(line)
+              }
             }
           }
         }
@@ -551,8 +648,6 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     lineMaterialThickness,
     lineMaterialIor,
     maxTrailPointsPerLayer,
-    adaptiveQuality,
-    maxAdaptiveStep,
     onHudStats,
   ])
 }

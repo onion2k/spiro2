@@ -42,9 +42,7 @@ export function GlobalControls({
     noiseSpeed,
     noiseOctaves,
     noiseSeed,
-    adaptiveQuality,
     maxTrailPointsPerLayer,
-    maxAdaptiveStep,
     strokeWidthMode,
     baseLineWidth,
     lineWidthBoost,
@@ -58,6 +56,14 @@ export function GlobalControls({
     autoRotateSpeed,
     showDebugGeometry,
     lineMaterialPreset,
+    lineMaterialColor,
+    lineMaterialMetalness,
+    lineMaterialRoughness,
+    lineMaterialClearcoat,
+    lineMaterialClearcoatRoughness,
+    lineMaterialTransmission,
+    lineMaterialThickness,
+    lineMaterialIor,
   } = settings
 
   const applyMaterialPreset = (presetId: Exclude<LineMaterialPresetId, 'custom'>) => {
@@ -71,6 +77,26 @@ export function GlobalControls({
     updateSetting('lineMaterialTransmission', preset.lineMaterialTransmission)
     updateSetting('lineMaterialThickness', preset.lineMaterialThickness)
     updateSetting('lineMaterialIor', preset.lineMaterialIor)
+  }
+
+  const updateMaterialSetting = <
+    K extends
+      | 'lineMaterialColor'
+      | 'lineMaterialMetalness'
+      | 'lineMaterialRoughness'
+      | 'lineMaterialClearcoat'
+      | 'lineMaterialClearcoatRoughness'
+      | 'lineMaterialTransmission'
+      | 'lineMaterialThickness'
+      | 'lineMaterialIor',
+  >(
+    key: K,
+    value: GlobalSettings[K]
+  ) => {
+    if (lineMaterialPreset !== 'custom') {
+      updateSetting('lineMaterialPreset', 'custom')
+    }
+    updateSetting(key, value)
   }
 
   const showPatternSections = scope === 'pattern' || scope === 'all'
@@ -143,6 +169,7 @@ export function GlobalControls({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="fat-lines">Fat Lines</SelectItem>
+                    <SelectItem value="tube-mesh">Tube Mesh (Static)</SelectItem>
                     <SelectItem value="instanced-sprites">Instanced Point Sprites</SelectItem>
                   </SelectContent>
                 </Select>
@@ -375,18 +402,8 @@ export function GlobalControls({
 
       {showRenderingSections && uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Performance</h3>
-        <p className="section-help">Balance smoothness and frame rate by constraining trail size and adaptive stepping.</p>
+        <p className="section-help">Balance smoothness and frame rate by constraining trail size.</p>
         <div className="field-grid">
-          <div className="field checkbox-field">
-            <label htmlFor="adaptive-quality">Adaptive Quality</label>
-            <input
-              id="adaptive-quality"
-              type="checkbox"
-              title="Skip points adaptively when rendering gets expensive."
-              checked={adaptiveQuality}
-              onChange={(event) => updateSetting('adaptiveQuality', event.target.checked)}
-            />
-          </div>
           <div className="field">
             <label htmlFor="max-trail">Max Trail Points ({maxTrailPointsPerLayer})</label>
             <Slider
@@ -397,19 +414,6 @@ export function GlobalControls({
               value={[maxTrailPointsPerLayer]}
               onValueChange={(value) => updateSetting('maxTrailPointsPerLayer', Math.round(value[0] ?? maxTrailPointsPerLayer))}
               aria-label="Max Trail Points"
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="max-step">Max Adaptive Skip ({maxAdaptiveStep})</label>
-            <Slider
-              id="max-step"
-              min={1}
-              max={8}
-              step={1}
-              value={[maxAdaptiveStep]}
-              onValueChange={(value) => updateSetting('maxAdaptiveStep', Math.round(value[0] ?? maxAdaptiveStep))}
-              disabled={!adaptiveQuality}
-              aria-label="Max Adaptive Skip"
             />
           </div>
         </div>
@@ -509,7 +513,7 @@ export function GlobalControls({
 
       {showRenderingSections && uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Line Material</h3>
-        <p className="section-help">Choose a bundled physical material setup for fat-line rendering.</p>
+        <p className="section-help">Choose a bundled physical material setup for ribbon and tube rendering.</p>
         <div className="field-grid">
           <div className="field">
             <label htmlFor="line-material-preset">Material Preset</label>
@@ -519,9 +523,9 @@ export function GlobalControls({
                 const presetId = value as Exclude<LineMaterialPresetId, 'custom'>
                 applyMaterialPreset(presetId)
               }}
-              disabled={threeLineRenderMode !== 'fat-lines'}
+              disabled={threeLineRenderMode === 'instanced-sprites'}
             >
-              <SelectTrigger id="line-material-preset" title="Apply a bundled physical material setup for ribbon lines." className="w-full">
+              <SelectTrigger id="line-material-preset" title="Apply a bundled physical material setup for ribbon and tube lines." className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -535,6 +539,118 @@ export function GlobalControls({
           </div>
         </div>
       </section> : null}
+
+      {showRenderingSections && uiMode === 'advanced' ? <section className="panel-section">
+        <h3 className="panel-section-title">Material Settings</h3>
+        <p className="section-help">Fine-tune physically based material properties for the rendered line geometry.</p>
+        <div className="field-grid">
+          <div className="field">
+            <label htmlFor="line-material-color">Base Color</label>
+            <input
+              id="line-material-color"
+              type="color"
+              title="Set the base material color."
+              value={lineMaterialColor}
+              onChange={(event) => updateMaterialSetting('lineMaterialColor', event.target.value)}
+              disabled={threeLineRenderMode === 'instanced-sprites'}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-metalness">Metalness ({lineMaterialMetalness.toFixed(2)})</label>
+            <Slider
+              id="line-material-metalness"
+              min={0}
+              max={1}
+              step={0.01}
+              value={[lineMaterialMetalness]}
+              onValueChange={(value) => updateMaterialSetting('lineMaterialMetalness', value[0] ?? lineMaterialMetalness)}
+              disabled={threeLineRenderMode === 'instanced-sprites'}
+              aria-label="Material Metalness"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-roughness">Roughness ({lineMaterialRoughness.toFixed(2)})</label>
+            <Slider
+              id="line-material-roughness"
+              min={0}
+              max={1}
+              step={0.01}
+              value={[lineMaterialRoughness]}
+              onValueChange={(value) => updateMaterialSetting('lineMaterialRoughness', value[0] ?? lineMaterialRoughness)}
+              disabled={threeLineRenderMode === 'instanced-sprites'}
+              aria-label="Material Roughness"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-clearcoat">Clearcoat ({lineMaterialClearcoat.toFixed(2)})</label>
+            <Slider
+              id="line-material-clearcoat"
+              min={0}
+              max={1}
+              step={0.01}
+              value={[lineMaterialClearcoat]}
+              onValueChange={(value) => updateMaterialSetting('lineMaterialClearcoat', value[0] ?? lineMaterialClearcoat)}
+              disabled={threeLineRenderMode === 'instanced-sprites'}
+              aria-label="Material Clearcoat"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-clearcoat-roughness">Clearcoat Roughness ({lineMaterialClearcoatRoughness.toFixed(2)})</label>
+            <Slider
+              id="line-material-clearcoat-roughness"
+              min={0}
+              max={1}
+              step={0.01}
+              value={[lineMaterialClearcoatRoughness]}
+              onValueChange={(value) =>
+                updateMaterialSetting('lineMaterialClearcoatRoughness', value[0] ?? lineMaterialClearcoatRoughness)
+              }
+              disabled={threeLineRenderMode === 'instanced-sprites'}
+              aria-label="Material Clearcoat Roughness"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-transmission">Transmission ({lineMaterialTransmission.toFixed(2)})</label>
+            <Slider
+              id="line-material-transmission"
+              min={0}
+              max={1}
+              step={0.01}
+              value={[lineMaterialTransmission]}
+              onValueChange={(value) => updateMaterialSetting('lineMaterialTransmission', value[0] ?? lineMaterialTransmission)}
+              disabled={threeLineRenderMode === 'instanced-sprites'}
+              aria-label="Material Transmission"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-thickness">Thickness ({lineMaterialThickness.toFixed(2)})</label>
+            <Slider
+              id="line-material-thickness"
+              min={0}
+              max={4}
+              step={0.01}
+              value={[lineMaterialThickness]}
+              onValueChange={(value) => updateMaterialSetting('lineMaterialThickness', value[0] ?? lineMaterialThickness)}
+              disabled={threeLineRenderMode === 'instanced-sprites'}
+              aria-label="Material Thickness"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="line-material-ior">IOR ({lineMaterialIor.toFixed(2)})</label>
+            <Slider
+              id="line-material-ior"
+              min={1}
+              max={2.33}
+              step={0.01}
+              value={[lineMaterialIor]}
+              onValueChange={(value) => updateMaterialSetting('lineMaterialIor', value[0] ?? lineMaterialIor)}
+              disabled={threeLineRenderMode === 'instanced-sprites'}
+              aria-label="Material IOR"
+            />
+          </div>
+        </div>
+      </section> : null}
+
     </section>
   )
 }

@@ -26,8 +26,40 @@ export function createGlowSpriteTexture() {
 export function disposeRenderableObject(node: Object3D) {
   const renderObject = node as {
     geometry?: { dispose: () => void }
-    material?: { dispose: () => void } | Array<{ dispose: () => void }>
+    material?: ({ dispose: () => void } & Record<string, unknown>) | Array<({ dispose: () => void } & Record<string, unknown>)>
     userData?: { skipGeometryDispose?: boolean; skipMaterialDispose?: boolean }
+  }
+  const disposeMaterialTextures = (material: Record<string, unknown>) => {
+    const textureKeys = [
+      'map',
+      'alphaMap',
+      'aoMap',
+      'bumpMap',
+      'clearcoatMap',
+      'clearcoatNormalMap',
+      'clearcoatRoughnessMap',
+      'displacementMap',
+      'emissiveMap',
+      'envMap',
+      'iridescenceMap',
+      'iridescenceThicknessMap',
+      'lightMap',
+      'metalnessMap',
+      'normalMap',
+      'roughnessMap',
+      'sheenColorMap',
+      'sheenRoughnessMap',
+      'specularColorMap',
+      'specularIntensityMap',
+      'thicknessMap',
+      'transmissionMap',
+    ]
+    for (const key of textureKeys) {
+      const texture = material[key]
+      if (texture && typeof texture === 'object' && 'dispose' in texture && typeof texture.dispose === 'function') {
+        texture.dispose()
+      }
+    }
   }
   if (renderObject.geometry && !renderObject.userData?.skipGeometryDispose) {
     renderObject.geometry.dispose()
@@ -37,9 +69,11 @@ export function disposeRenderableObject(node: Object3D) {
   }
   if (Array.isArray(renderObject.material)) {
     for (const material of renderObject.material) {
+      disposeMaterialTextures(material)
       material.dispose()
     }
   } else if (renderObject.material) {
+    disposeMaterialTextures(renderObject.material)
     renderObject.material.dispose()
   }
 }

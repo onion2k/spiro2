@@ -5,7 +5,7 @@ import { createRuntimeState, stepRuntime } from './runtime';
 import { createThreeCamera, resizeThreeCamera } from './three/camera';
 import { clearGroup, createGlowSpriteTexture } from './three/resources';
 export function useThreeRenderer(options) {
-    const { containerRef, enabled, layers, compiledLayers, isPaused, resetTick, recenterTick, mirrorX, mirrorY, rotationalRepeats, rotationOffsetDeg, amplitudeMod, frequencyMod, phaseMod, noiseMode, noiseAmount, noiseFrequency, noiseSpeed, noiseOctaves, noiseSeed, strokeWidthMode, baseLineWidth, lineWidthBoost, trailSmoothing, dashedLines, dashLength, dashGap, threeCameraMode, threeLineRenderMode, threeSpriteSize, threeSpriteSoftness, autoRotateScene, autoRotateSpeed, showDebugGeometry, lineMaterialColor, lineMaterialMetalness, lineMaterialRoughness, lineMaterialClearcoat, lineMaterialClearcoatRoughness, lineMaterialTransmission, lineMaterialThickness, lineMaterialIor, maxTrailPointsPerLayer, adaptiveQuality, maxAdaptiveStep, onHudStats, } = options;
+    const { containerRef, enabled, layers, compiledLayers, isPaused, resetTick, recenterTick, mirrorX, mirrorY, rotationalRepeats, rotationOffsetDeg, amplitudeMod, frequencyMod, phaseMod, noiseMode, noiseAmount, noiseFrequency, noiseSpeed, noiseOctaves, noiseSeed, strokeWidthMode, baseLineWidth, lineWidthBoost, trailSmoothing, dashedLines, dashLength, dashGap, threeCameraMode, threeLineRenderMode, threeSpriteSize, threeSpriteSoftness, autoRotateScene, autoRotateSpeed, showDebugGeometry, lineMaterialColor, lineMaterialMetalness, lineMaterialRoughness, lineMaterialClearcoat, lineMaterialClearcoatRoughness, lineMaterialTransmission, lineMaterialThickness, lineMaterialIor, maxTrailPointsPerLayer, onHudStats, } = options;
     const recenterTickRef = useRef(recenterTick);
     useEffect(() => {
         recenterTickRef.current = recenterTick;
@@ -52,14 +52,14 @@ export function useThreeRenderer(options) {
             // Keep blur sigma conservative to avoid THREE.sigmaRadians sample clipping warnings.
             const environmentMap = pmremGenerator.fromScene(new RoomEnvironment(), 0.03).texture;
             scene.environment = environmentMap;
-            const ambientLight = new AmbientLight(0xffffff, 0.72);
-            const skyFill = new HemisphereLight(0xd6e6ff, 0x111827, 0.55);
-            const keyLight = new DirectionalLight(0xffffff, 2.2);
-            keyLight.position.set(2200, 2400, 2800);
-            const fillLight = new DirectionalLight(0xaec8ff, 1.1);
-            fillLight.position.set(-1900, -1400, 2100);
-            const rimLight = new DirectionalLight(0xfff1da, 0.75);
-            rimLight.position.set(0, 1800, -2400);
+            const ambientLight = new AmbientLight(0xffffff, 0.28);
+            const skyFill = new HemisphereLight(0xd6e6ff, 0x111827, 0.26);
+            const keyLight = new DirectionalLight(0xffffff, 2.9);
+            keyLight.position.set(2600, 2100, 3000);
+            const fillLight = new DirectionalLight(0xaec8ff, 0.65);
+            fillLight.position.set(-2100, -1600, 1400);
+            const rimLight = new DirectionalLight(0xfff1da, 1.45);
+            rimLight.position.set(-300, 2300, -3100);
             scene.add(ambientLight, skyFill, keyLight, fillLight, rimLight);
             const drawGroup = new Group();
             scene.add(drawGroup);
@@ -230,8 +230,6 @@ export function useThreeRenderer(options) {
                     noiseOctaves,
                     noiseSeed,
                     maxTrailPointsPerLayer,
-                    adaptiveQuality,
-                    maxAdaptiveStep,
                     timeMs,
                     width,
                     height,
@@ -436,8 +434,6 @@ export function useThreeRenderer(options) {
         lineMaterialThickness,
         lineMaterialIor,
         maxTrailPointsPerLayer,
-        adaptiveQuality,
-        maxAdaptiveStep,
         onHudStats,
     ]);
 }

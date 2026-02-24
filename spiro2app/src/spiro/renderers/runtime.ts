@@ -15,14 +15,12 @@ export type RuntimeLayer = {
   previousDirection: Point3 | null
   trail: TrailPoint[]
   pointIndex: number
-  sampleCounter: number
 }
 
 export type RuntimeState = {
   runtimeLayers: RuntimeLayer[]
   prevTimeMs: number
   fpsEma: number
-  sampleStride: number
 }
 
 type StepRuntimeOptions = Pick<
@@ -40,8 +38,6 @@ type StepRuntimeOptions = Pick<
   | 'noiseOctaves'
   | 'noiseSeed'
   | 'maxTrailPointsPerLayer'
-  | 'adaptiveQuality'
-  | 'maxAdaptiveStep'
 > & {
   state: RuntimeState
   timeMs: number
@@ -61,11 +57,9 @@ export function createRuntimeState(layers: LayerConfig[], compiledLayers: Compil
       previousDirection: null,
       trail: [],
       pointIndex: 0,
-      sampleCounter: 0,
     })),
     prevTimeMs: 0,
     fpsEma: 60,
-    sampleStride: 1,
   }
 }
 
@@ -85,8 +79,6 @@ export function stepRuntime(options: StepRuntimeOptions) {
     noiseOctaves,
     noiseSeed,
     maxTrailPointsPerLayer,
-    adaptiveQuality,
-    maxAdaptiveStep,
     timeMs,
     width,
     height,
@@ -115,22 +107,12 @@ export function stepRuntime(options: StepRuntimeOptions) {
       previousDirection: null,
       trail: [],
       pointIndex: 0,
-      sampleCounter: 0,
     }
   })
 
   if (dt > 0) {
     const fps = 1 / dt
     state.fpsEma = state.fpsEma * 0.9 + fps * 0.1
-    if (adaptiveQuality) {
-      if (state.fpsEma < 24) {
-        state.sampleStride = Math.min(Math.max(1, maxAdaptiveStep), state.sampleStride + 1)
-      } else if (state.fpsEma > 50) {
-        state.sampleStride = Math.max(1, state.sampleStride - 1)
-      }
-    } else {
-      state.sampleStride = 1
-    }
   }
 
   for (const runtime of state.runtimeLayers) {
@@ -139,85 +121,82 @@ export function stepRuntime(options: StepRuntimeOptions) {
       runtime.paramT += dt * layer.speed
       runtime.paramU += dt * layer.uSpeed
 
-      runtime.sampleCounter += 1
-      if (runtime.sampleCounter % state.sampleStride === 0) {
-        const modulationPhase = runtime.paramU * 0.83 + Math.sin(runtime.paramT * 0.17)
-        const modT =
-          (runtime.paramT + phaseMod * Math.sin(modulationPhase)) *
-          (1 + frequencyMod * Math.sin(runtime.paramU * 0.71))
-        const modU =
-          (runtime.paramU + phaseMod * 0.35 * Math.cos(runtime.paramT * 0.29)) *
-          (1 + frequencyMod * 0.35 * Math.sin(runtime.paramT * 0.23))
-        const point = runtime.fn(modT, modU, layer.R, layer.r, layer.d)
-        if (Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z)) {
-          const amplitudeScaleX = 1 + amplitudeMod * Math.sin(runtime.paramU * 0.91)
-          const amplitudeScaleY = 1 + amplitudeMod * Math.cos(runtime.paramU * 0.73)
-          const nx = modT * noiseFrequency + runtime.paramT * noiseSpeed
-          const ny = modU * noiseFrequency + runtime.paramU * noiseSpeed
-          const octaves = Math.max(1, Math.min(6, Math.round(noiseOctaves)))
-          let wobbleX = 0
-          let wobbleY = 0
-          if (noiseMode === 'grain') {
-            wobbleX = (hashNoise2D(nx, ny, noiseSeed) - 0.5) * 2 * noiseAmount
-            wobbleY = (hashNoise2D(nx + 17.3, ny + 9.1, noiseSeed + 1.77) - 0.5) * 2 * noiseAmount
-          } else if (noiseMode === 'flow') {
-            wobbleX = fbmNoise2D(nx, ny, noiseSeed, octaves) * noiseAmount
-            wobbleY = fbmNoise2D(nx + 19.2, ny + 7.6, noiseSeed + 2.03, octaves) * noiseAmount
-          }
-          const modX = point.x * amplitudeScaleX + wobbleX
-          const modY = point.y * amplitudeScaleY + wobbleY
-          const modZ = point.z
-          const maxRange = Math.max(1, Math.abs(layer.R - layer.r) + Math.abs(layer.d))
-          const scale = (Math.min(width, height) * 0.46) / maxRange
-          const x = center.x + modX * scale
-          const y = center.y + modY * scale
-          const z = modZ * scale
+      const modulationPhase = runtime.paramU * 0.83 + Math.sin(runtime.paramT * 0.17)
+      const modT =
+        (runtime.paramT + phaseMod * Math.sin(modulationPhase)) *
+        (1 + frequencyMod * Math.sin(runtime.paramU * 0.71))
+      const modU =
+        (runtime.paramU + phaseMod * 0.35 * Math.cos(runtime.paramT * 0.29)) *
+        (1 + frequencyMod * 0.35 * Math.sin(runtime.paramT * 0.23))
+      const point = runtime.fn(modT, modU, layer.R, layer.r, layer.d)
+      if (Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z)) {
+        const amplitudeScaleX = 1 + amplitudeMod * Math.sin(runtime.paramU * 0.91)
+        const amplitudeScaleY = 1 + amplitudeMod * Math.cos(runtime.paramU * 0.73)
+        const nx = modT * noiseFrequency + runtime.paramT * noiseSpeed
+        const ny = modU * noiseFrequency + runtime.paramU * noiseSpeed
+        const octaves = Math.max(1, Math.min(6, Math.round(noiseOctaves)))
+        let wobbleX = 0
+        let wobbleY = 0
+        if (noiseMode === 'grain') {
+          wobbleX = (hashNoise2D(nx, ny, noiseSeed) - 0.5) * 2 * noiseAmount
+          wobbleY = (hashNoise2D(nx + 17.3, ny + 9.1, noiseSeed + 1.77) - 0.5) * 2 * noiseAmount
+        } else if (noiseMode === 'flow') {
+          wobbleX = fbmNoise2D(nx, ny, noiseSeed, octaves) * noiseAmount
+          wobbleY = fbmNoise2D(nx + 19.2, ny + 7.6, noiseSeed + 2.03, octaves) * noiseAmount
+        }
+        const modX = point.x * amplitudeScaleX + wobbleX
+        const modY = point.y * amplitudeScaleY + wobbleY
+        const modZ = point.z
+        const maxRange = Math.max(1, Math.abs(layer.R - layer.r) + Math.abs(layer.d))
+        const scale = (Math.min(width, height) * 0.46) / maxRange
+        const x = center.x + modX * scale
+        const y = center.y + modY * scale
+        const z = modZ * scale
 
-          let speedNorm = 0
-          let curvatureNorm = 0
-          if (runtime.previous && dt > 0) {
-            const dx = x - runtime.previous.x
-            const dy = y - runtime.previous.y
-            const dz = z - runtime.previous.z
-            const distance = Math.hypot(dx, dy, dz)
-            speedNorm = clamp01(distance / (Math.min(width, height) * 0.04))
+        let speedNorm = 0
+        let curvatureNorm = 0
+        if (runtime.previous && dt > 0) {
+          const dx = x - runtime.previous.x
+          const dy = y - runtime.previous.y
+          const dz = z - runtime.previous.z
+          const distance = Math.hypot(dx, dy, dz)
+          speedNorm = clamp01(distance / (Math.min(width, height) * 0.04))
 
-            if (distance > 1e-6) {
-              const direction = { x: dx / distance, y: dy / distance, z: dz / distance }
-              if (runtime.previousDirection) {
-                const dot =
-                  runtime.previousDirection.x * direction.x +
-                  runtime.previousDirection.y * direction.y +
-                  runtime.previousDirection.z * direction.z
-                const clampedDot = Math.max(-1, Math.min(1, dot))
-                const turn = Math.acos(clampedDot)
-                curvatureNorm = clamp01(turn / Math.PI)
-              }
-              runtime.previousDirection = direction
-            } else {
-              runtime.previousDirection = null
+          if (distance > 1e-6) {
+            const direction = { x: dx / distance, y: dy / distance, z: dz / distance }
+            if (runtime.previousDirection) {
+              const dot =
+                runtime.previousDirection.x * direction.x +
+                runtime.previousDirection.y * direction.y +
+                runtime.previousDirection.z * direction.z
+              const clampedDot = Math.max(-1, Math.min(1, dot))
+              const turn = Math.acos(clampedDot)
+              curvatureNorm = clamp01(turn / Math.PI)
             }
+            runtime.previousDirection = direction
           } else {
             runtime.previousDirection = null
           }
-
-          runtime.trail.push({
-            x,
-            y,
-            z,
-            drawnAt: nowSec,
-            hue: (runtime.paramT * 40) % 360,
-            connected: runtime.previous !== null,
-            speedNorm,
-            curvatureNorm,
-            index: runtime.pointIndex,
-          })
-          runtime.pointIndex += 1
-          runtime.previous = { x, y, z }
         } else {
-          runtime.previous = null
           runtime.previousDirection = null
         }
+
+        runtime.trail.push({
+          x,
+          y,
+          z,
+          drawnAt: nowSec,
+          hue: (runtime.paramT * 40) % 360,
+          connected: runtime.previous !== null,
+          speedNorm,
+          curvatureNorm,
+          index: runtime.pointIndex,
+        })
+        runtime.pointIndex += 1
+        runtime.previous = { x, y, z }
+      } else {
+        runtime.previous = null
+        runtime.previousDirection = null
       }
     }
 
