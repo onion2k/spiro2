@@ -1,5 +1,5 @@
 import { EQUATION_EXAMPLES, PRESETS } from '@/spiro/constants'
-import type { ColorMode, CustomPreset, LayerConfig, MultiLineMotionMode, PaletteId } from '@/spiro/types'
+import type { AttractorEquation, ColorMode, CustomPreset, LayerConfig, MultiLineMotionMode, PaletteId, PathGeneratorKind } from '@/spiro/types'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
@@ -75,6 +75,29 @@ export function LayerControls({
   const layerUSpeed = activeLayer?.uSpeed ?? 0
   const layerLineLifetime = activeLayer?.lineLifetime ?? 0.2
   const layerBaseHue = activeLayer?.baseHue ?? 210
+  const generatorKind = activeLayer?.generatorKind ?? 'parametric'
+  const lissajousAx = activeLayer?.lissajousAx ?? layerR
+  const lissajousAy = activeLayer?.lissajousAy ?? layerSmallR
+  const lissajousAz = activeLayer?.lissajousAz ?? layerD
+  const lissajousFx = activeLayer?.lissajousFx ?? 3
+  const lissajousFy = activeLayer?.lissajousFy ?? 2
+  const lissajousFz = activeLayer?.lissajousFz ?? 5
+  const lissajousPhaseX = activeLayer?.lissajousPhaseX ?? Math.PI / 2
+  const lissajousPhaseY = activeLayer?.lissajousPhaseY ?? 0
+  const lissajousPhaseZ = activeLayer?.lissajousPhaseZ ?? Math.PI / 4
+  const lissajousUMixX = activeLayer?.lissajousUMixX ?? 0.25
+  const lissajousUMixY = activeLayer?.lissajousUMixY ?? 0.2
+  const lissajousUMixZ = activeLayer?.lissajousUMixZ ?? 0.3
+  const attractorSigma = activeLayer?.attractorSigma ?? 10
+  const attractorRho = activeLayer?.attractorRho ?? 28
+  const attractorBeta = activeLayer?.attractorBeta ?? 8 / 3
+  const attractorStepScale = activeLayer?.attractorStepScale ?? 1
+  const attractorInitialX = activeLayer?.attractorInitialX ?? 0.1
+  const attractorInitialY = activeLayer?.attractorInitialY ?? 0
+  const attractorInitialZ = activeLayer?.attractorInitialZ ?? 0
+  const attractorScale = activeLayer?.attractorScale ?? 0.35
+  const attractorWarmupSteps = activeLayer?.attractorWarmupSteps ?? 120
+  const attractorEquation = activeLayer?.attractorEquation ?? 'lorenz'
 
   return (
     <section className="control-group" aria-label="Layer Controls">
@@ -143,7 +166,315 @@ export function LayerControls({
         ) : null}
       </section> : null}
 
-      {showCoreSections && uiMode === 'advanced' ? <section className="panel-section">
+      {showCoreSections ? <section className="panel-section">
+        <h3 className="panel-section-title">Generator</h3>
+        <p className="section-help">Choose the path generator for this layer. Lissajous mode uses dedicated frequency, phase, and amplitude controls.</p>
+        <div className="field-grid">
+          <div className="field">
+            <label htmlFor="generator-kind">Path Generator</label>
+            <Select
+              value={generatorKind}
+              onValueChange={(value) => updateActiveLayer({ generatorKind: value as PathGeneratorKind })}
+            >
+              <SelectTrigger id="generator-kind" title="Pick the point-generation algorithm used for this layer." className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="parametric">Parametric Equations</SelectItem>
+                <SelectItem value="lissajous">Lissajous Curve</SelectItem>
+                <SelectItem value="strange-attractor">Strange Attractor</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        {generatorKind === 'lissajous' ? (
+          <div className="field-grid">
+            <div className="field">
+              <label htmlFor="lissajous-ax">A_x ({lissajousAx.toFixed(2)})</label>
+              <Slider
+                id="lissajous-ax"
+                min={Math.min(-20, lissajousAx)}
+                max={Math.max(20, lissajousAx)}
+                step={0.1}
+                value={[lissajousAx]}
+                onValueChange={(value) => updateActiveLayer({ lissajousAx: value[0] ?? lissajousAx })}
+                aria-label="Lissajous X Amplitude"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="lissajous-ay">A_y ({lissajousAy.toFixed(2)})</label>
+              <Slider
+                id="lissajous-ay"
+                min={Math.min(-20, lissajousAy)}
+                max={Math.max(20, lissajousAy)}
+                step={0.1}
+                value={[lissajousAy]}
+                onValueChange={(value) => updateActiveLayer({ lissajousAy: value[0] ?? lissajousAy })}
+                aria-label="Lissajous Y Amplitude"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="lissajous-az">A_z ({lissajousAz.toFixed(2)})</label>
+              <Slider
+                id="lissajous-az"
+                min={Math.min(-20, lissajousAz)}
+                max={Math.max(20, lissajousAz)}
+                step={0.1}
+                value={[lissajousAz]}
+                onValueChange={(value) => updateActiveLayer({ lissajousAz: value[0] ?? lissajousAz })}
+                aria-label="Lissajous Z Amplitude"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="lissajous-fx">f_x ({lissajousFx.toFixed(2)})</label>
+              <Slider
+                id="lissajous-fx"
+                min={0}
+                max={Math.max(20, lissajousFx)}
+                step={0.05}
+                value={[lissajousFx]}
+                onValueChange={(value) => updateActiveLayer({ lissajousFx: value[0] ?? lissajousFx })}
+                aria-label="Lissajous X Frequency"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="lissajous-fy">f_y ({lissajousFy.toFixed(2)})</label>
+              <Slider
+                id="lissajous-fy"
+                min={0}
+                max={Math.max(20, lissajousFy)}
+                step={0.05}
+                value={[lissajousFy]}
+                onValueChange={(value) => updateActiveLayer({ lissajousFy: value[0] ?? lissajousFy })}
+                aria-label="Lissajous Y Frequency"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="lissajous-fz">f_z ({lissajousFz.toFixed(2)})</label>
+              <Slider
+                id="lissajous-fz"
+                min={0}
+                max={Math.max(20, lissajousFz)}
+                step={0.05}
+                value={[lissajousFz]}
+                onValueChange={(value) => updateActiveLayer({ lissajousFz: value[0] ?? lissajousFz })}
+                aria-label="Lissajous Z Frequency"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="lissajous-phase-x">phase_x ({lissajousPhaseX.toFixed(2)})</label>
+              <Slider
+                id="lissajous-phase-x"
+                min={-Math.PI * 2}
+                max={Math.PI * 2}
+                step={0.01}
+                value={[lissajousPhaseX]}
+                onValueChange={(value) => updateActiveLayer({ lissajousPhaseX: value[0] ?? lissajousPhaseX })}
+                aria-label="Lissajous X Phase"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="lissajous-phase-y">phase_y ({lissajousPhaseY.toFixed(2)})</label>
+              <Slider
+                id="lissajous-phase-y"
+                min={-Math.PI * 2}
+                max={Math.PI * 2}
+                step={0.01}
+                value={[lissajousPhaseY]}
+                onValueChange={(value) => updateActiveLayer({ lissajousPhaseY: value[0] ?? lissajousPhaseY })}
+                aria-label="Lissajous Y Phase"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="lissajous-phase-z">phase_z ({lissajousPhaseZ.toFixed(2)})</label>
+              <Slider
+                id="lissajous-phase-z"
+                min={-Math.PI * 2}
+                max={Math.PI * 2}
+                step={0.01}
+                value={[lissajousPhaseZ]}
+                onValueChange={(value) => updateActiveLayer({ lissajousPhaseZ: value[0] ?? lissajousPhaseZ })}
+                aria-label="Lissajous Z Phase"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="lissajous-umix-x">u Mix X ({lissajousUMixX.toFixed(2)})</label>
+              <Slider
+                id="lissajous-umix-x"
+                min={-3}
+                max={3}
+                step={0.01}
+                value={[lissajousUMixX]}
+                onValueChange={(value) => updateActiveLayer({ lissajousUMixX: value[0] ?? lissajousUMixX })}
+                aria-label="Lissajous U Mix X"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="lissajous-umix-y">u Mix Y ({lissajousUMixY.toFixed(2)})</label>
+              <Slider
+                id="lissajous-umix-y"
+                min={-3}
+                max={3}
+                step={0.01}
+                value={[lissajousUMixY]}
+                onValueChange={(value) => updateActiveLayer({ lissajousUMixY: value[0] ?? lissajousUMixY })}
+                aria-label="Lissajous U Mix Y"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="lissajous-umix-z">u Mix Z ({lissajousUMixZ.toFixed(2)})</label>
+              <Slider
+                id="lissajous-umix-z"
+                min={-3}
+                max={3}
+                step={0.01}
+                value={[lissajousUMixZ]}
+                onValueChange={(value) => updateActiveLayer({ lissajousUMixZ: value[0] ?? lissajousUMixZ })}
+                aria-label="Lissajous U Mix Z"
+              />
+            </div>
+          </div>
+        ) : null}
+        {generatorKind === 'strange-attractor' ? (
+          <div className="field-grid">
+            <div className="field">
+              <label htmlFor="attractor-equation">Equation</label>
+              <Select
+                value={attractorEquation}
+                onValueChange={(value) => updateActiveLayer({ attractorEquation: value as AttractorEquation })}
+              >
+                <SelectTrigger id="attractor-equation" title="Choose which strange-attractor differential equations to integrate." className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lorenz">Lorenz</SelectItem>
+                  <SelectItem value="rossler">Rossler</SelectItem>
+                  <SelectItem value="chen">Chen</SelectItem>
+                  <SelectItem value="thomas">Thomas</SelectItem>
+                  <SelectItem value="halvorsen">Halvorsen</SelectItem>
+                  <SelectItem value="aizawa">Aizawa</SelectItem>
+                  <SelectItem value="lu-chen">Lu-Chen</SelectItem>
+                  <SelectItem value="rabinovich-fabrikant">Rabinovich-Fabrikant</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="field">
+              <label htmlFor="attractor-sigma">Sigma ({attractorSigma.toFixed(2)})</label>
+              <Slider
+                id="attractor-sigma"
+                min={0}
+                max={Math.max(40, attractorSigma)}
+                step={0.05}
+                value={[attractorSigma]}
+                onValueChange={(value) => updateActiveLayer({ attractorSigma: value[0] ?? attractorSigma })}
+                aria-label="Attractor Sigma"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="attractor-rho">Rho ({attractorRho.toFixed(2)})</label>
+              <Slider
+                id="attractor-rho"
+                min={0}
+                max={Math.max(80, attractorRho)}
+                step={0.1}
+                value={[attractorRho]}
+                onValueChange={(value) => updateActiveLayer({ attractorRho: value[0] ?? attractorRho })}
+                aria-label="Attractor Rho"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="attractor-beta">Beta ({attractorBeta.toFixed(3)})</label>
+              <Slider
+                id="attractor-beta"
+                min={0}
+                max={Math.max(12, attractorBeta)}
+                step={0.01}
+                value={[attractorBeta]}
+                onValueChange={(value) => updateActiveLayer({ attractorBeta: value[0] ?? attractorBeta })}
+                aria-label="Attractor Beta"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="attractor-step-scale">Step Scale ({attractorStepScale.toFixed(2)})</label>
+              <Slider
+                id="attractor-step-scale"
+                min={0.05}
+                max={Math.max(5, attractorStepScale)}
+                step={0.01}
+                value={[attractorStepScale]}
+                onValueChange={(value) => updateActiveLayer({ attractorStepScale: Math.max(0.05, value[0] ?? attractorStepScale) })}
+                aria-label="Attractor Step Scale"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="attractor-scale">Output Scale ({attractorScale.toFixed(3)})</label>
+              <Slider
+                id="attractor-scale"
+                min={0.01}
+                max={Math.max(2, attractorScale)}
+                step={0.005}
+                value={[attractorScale]}
+                onValueChange={(value) => updateActiveLayer({ attractorScale: Math.max(0.01, value[0] ?? attractorScale) })}
+                aria-label="Attractor Output Scale"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="attractor-warmup">Warmup Steps ({attractorWarmupSteps})</label>
+              <Slider
+                id="attractor-warmup"
+                min={0}
+                max={2000}
+                step={1}
+                value={[attractorWarmupSteps]}
+                onValueChange={(value) =>
+                  updateActiveLayer({
+                    attractorWarmupSteps: Math.max(0, Math.min(2000, Math.round(value[0] ?? attractorWarmupSteps))),
+                  })
+                }
+                aria-label="Attractor Warmup Steps"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="attractor-x0">Initial X ({attractorInitialX.toFixed(3)})</label>
+              <Slider
+                id="attractor-x0"
+                min={Math.min(-5, attractorInitialX)}
+                max={Math.max(5, attractorInitialX)}
+                step={0.001}
+                value={[attractorInitialX]}
+                onValueChange={(value) => updateActiveLayer({ attractorInitialX: value[0] ?? attractorInitialX })}
+                aria-label="Attractor Initial X"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="attractor-y0">Initial Y ({attractorInitialY.toFixed(3)})</label>
+              <Slider
+                id="attractor-y0"
+                min={Math.min(-5, attractorInitialY)}
+                max={Math.max(5, attractorInitialY)}
+                step={0.001}
+                value={[attractorInitialY]}
+                onValueChange={(value) => updateActiveLayer({ attractorInitialY: value[0] ?? attractorInitialY })}
+                aria-label="Attractor Initial Y"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="attractor-z0">Initial Z ({attractorInitialZ.toFixed(3)})</label>
+              <Slider
+                id="attractor-z0"
+                min={Math.min(-5, attractorInitialZ)}
+                max={Math.max(5, attractorInitialZ)}
+                step={0.001}
+                value={[attractorInitialZ]}
+                onValueChange={(value) => updateActiveLayer({ attractorInitialZ: value[0] ?? attractorInitialZ })}
+                aria-label="Attractor Initial Z"
+              />
+            </div>
+          </div>
+        ) : null}
+      </section> : null}
+
+      {showCoreSections && uiMode === 'advanced' && generatorKind === 'parametric' ? <section className="panel-section">
         <h3 className="panel-section-title">Equations</h3>
         <p className="section-help">Define parametric formulas for x, y, and z. These formulas run continuously over time variables t and u.</p>
         <p className="section-help">
@@ -157,7 +488,7 @@ export function LayerControls({
               id="equation-x"
               title="Expression for x(t,u). Example: cos(t) * (R - r) + d * cos((R - r) / r * t)"
               value={activeLayer?.exprX ?? ''}
-              onChange={(event) => updateActiveLayer({ exprX: event.target.value })}
+              onChange={(event) => updateActiveLayer({ generatorKind: 'parametric', exprX: event.target.value })}
               onFocus={() => setActiveEquation('x')}
               spellCheck={false}
               autoComplete="off"
@@ -170,7 +501,7 @@ export function LayerControls({
               id="equation-y"
               title="Expression for y(t,u). Use same function library as x(t,u)."
               value={activeLayer?.exprY ?? ''}
-              onChange={(event) => updateActiveLayer({ exprY: event.target.value })}
+              onChange={(event) => updateActiveLayer({ generatorKind: 'parametric', exprY: event.target.value })}
               onFocus={() => setActiveEquation('y')}
               spellCheck={false}
               autoComplete="off"
@@ -183,7 +514,7 @@ export function LayerControls({
               id="equation-z"
               title="Expression for z(t,u). Use 0 for a flat plane."
               value={activeLayer?.exprZ ?? '0'}
-              onChange={(event) => updateActiveLayer({ exprZ: event.target.value })}
+              onChange={(event) => updateActiveLayer({ generatorKind: 'parametric', exprZ: event.target.value })}
               onFocus={() => setActiveEquation('z')}
               spellCheck={false}
               autoComplete="off"

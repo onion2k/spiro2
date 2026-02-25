@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { ControlPanel } from './components/control-panel/ControlPanel'
 
-import { compileParametric } from './spiro/equation'
+import { compileLayerGenerator } from './spiro/equation'
 import { buildRendererConfig } from './spiro/renderers/config'
 import { DEFAULT_GLOBAL_SETTINGS } from './spiro/renderers/defaults'
 import type { GlobalSettings } from './spiro/renderers/defaults'
@@ -118,7 +118,7 @@ function App() {
     () =>
       layers.map((layer) => ({
         id: layer.id,
-        ...compileParametric(layer.exprX, layer.exprY, layer.exprZ),
+        ...compileLayerGenerator(layer),
       })),
     [layers]
   )
@@ -273,7 +273,7 @@ function App() {
     if (!example) {
       return
     }
-    updateActiveLayer({ exprX: example.exprX, exprY: example.exprY, exprZ: example.exprZ ?? '0' })
+    updateActiveLayer({ generatorKind: 'parametric', exprX: example.exprX, exprY: example.exprY, exprZ: example.exprZ ?? '0' })
     setResetTick((value) => value + 1)
   }
 
@@ -282,11 +282,11 @@ function App() {
       return
     }
     if (activeEquation === 'x') {
-      updateActiveLayer({ exprX: `${activeLayer.exprX}${snippet}` })
+      updateActiveLayer({ generatorKind: 'parametric', exprX: `${activeLayer.exprX}${snippet}` })
     } else if (activeEquation === 'y') {
-      updateActiveLayer({ exprY: `${activeLayer.exprY}${snippet}` })
+      updateActiveLayer({ generatorKind: 'parametric', exprY: `${activeLayer.exprY}${snippet}` })
     } else {
-      updateActiveLayer({ exprZ: `${activeLayer.exprZ}${snippet}` })
+      updateActiveLayer({ generatorKind: 'parametric', exprZ: `${activeLayer.exprZ}${snippet}` })
     }
   }
 
@@ -302,6 +302,29 @@ function App() {
       exprX: preset.exprX,
       exprY: preset.exprY,
       exprZ: preset.exprZ ?? '0',
+      generatorKind: preset.generatorKind ?? 'parametric',
+      lissajousAx: preset.lissajousAx ?? preset.R,
+      lissajousAy: preset.lissajousAy ?? preset.r,
+      lissajousAz: preset.lissajousAz ?? preset.d,
+      lissajousFx: preset.lissajousFx ?? 3,
+      lissajousFy: preset.lissajousFy ?? 2,
+      lissajousFz: preset.lissajousFz ?? 5,
+      lissajousPhaseX: preset.lissajousPhaseX ?? Math.PI / 2,
+      lissajousPhaseY: preset.lissajousPhaseY ?? 0,
+      lissajousPhaseZ: preset.lissajousPhaseZ ?? Math.PI / 4,
+      lissajousUMixX: preset.lissajousUMixX ?? 0.25,
+      lissajousUMixY: preset.lissajousUMixY ?? 0.2,
+      lissajousUMixZ: preset.lissajousUMixZ ?? 0.3,
+      attractorSigma: preset.attractorSigma ?? 10,
+      attractorRho: preset.attractorRho ?? 28,
+      attractorBeta: preset.attractorBeta ?? 8 / 3,
+      attractorStepScale: preset.attractorStepScale ?? 1,
+      attractorInitialX: preset.attractorInitialX ?? 0.1,
+      attractorInitialY: preset.attractorInitialY ?? 0,
+      attractorInitialZ: preset.attractorInitialZ ?? 0,
+      attractorScale: preset.attractorScale ?? 0.35,
+      attractorWarmupSteps: preset.attractorWarmupSteps ?? 120,
+      attractorEquation: preset.attractorEquation ?? 'lorenz',
       R: preset.R,
       r: preset.r,
       d: preset.d,

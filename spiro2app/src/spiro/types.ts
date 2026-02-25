@@ -4,7 +4,18 @@ export type ColorMode = 'hue-cycle' | 'age' | 'speed' | 'curvature' | 'palette'
 export type StrokeWidthMode = 'fixed' | 'speed' | 'curvature'
 export type NoiseMode = 'off' | 'grain' | 'flow'
 export type PaletteId = 'neon' | 'sunset' | 'ocean' | 'forest' | 'candy'
+export type PathGeneratorKind = 'parametric' | 'lissajous' | 'strange-attractor'
+export type AttractorEquation =
+  | 'lorenz'
+  | 'rossler'
+  | 'chen'
+  | 'thomas'
+  | 'halvorsen'
+  | 'aizawa'
+  | 'lu-chen'
+  | 'rabinovich-fabrikant'
 export type Point = { x: number; y: number }
+export type Point3 = { x: number; y: number; z: number }
 
 export type LayerConfig = {
   id: string
@@ -13,6 +24,29 @@ export type LayerConfig = {
   exprX: string
   exprY: string
   exprZ: string
+  generatorKind: PathGeneratorKind
+  lissajousAx: number
+  lissajousAy: number
+  lissajousAz: number
+  lissajousFx: number
+  lissajousFy: number
+  lissajousFz: number
+  lissajousPhaseX: number
+  lissajousPhaseY: number
+  lissajousPhaseZ: number
+  lissajousUMixX: number
+  lissajousUMixY: number
+  lissajousUMixZ: number
+  attractorSigma: number
+  attractorRho: number
+  attractorBeta: number
+  attractorStepScale: number
+  attractorInitialX: number
+  attractorInitialY: number
+  attractorInitialZ: number
+  attractorScale: number
+  attractorWarmupSteps: number
+  attractorEquation: AttractorEquation
   R: number
   r: number
   d: number
@@ -29,6 +63,34 @@ export type LayerConfig = {
   paletteId: PaletteId
   hueLock: boolean
   baseHue: number
+}
+
+export type Phase2 = {
+  t: number
+  u: number
+}
+
+export type PathGeneratorPhase = {
+  base: Phase2
+  sample: Phase2
+}
+
+export type PathGeneratorSample = {
+  point: Point3
+  phase: PathGeneratorPhase
+}
+
+export type PathGeneratorState = Record<string, number>
+
+export type PathGenerator = {
+  kind: string
+  createState?: () => PathGeneratorState
+  step: (args: {
+    layer: LayerConfig
+    dt: number
+    state: PathGeneratorState
+    modulatePhase: (base: Phase2) => Phase2
+  }) => PathGeneratorSample | null
 }
 
 export type TrailPoint = {
@@ -49,6 +111,29 @@ export type Preset = {
   exprX: string
   exprY: string
   exprZ?: string
+  generatorKind?: PathGeneratorKind
+  lissajousAx?: number
+  lissajousAy?: number
+  lissajousAz?: number
+  lissajousFx?: number
+  lissajousFy?: number
+  lissajousFz?: number
+  lissajousPhaseX?: number
+  lissajousPhaseY?: number
+  lissajousPhaseZ?: number
+  lissajousUMixX?: number
+  lissajousUMixY?: number
+  lissajousUMixZ?: number
+  attractorSigma?: number
+  attractorRho?: number
+  attractorBeta?: number
+  attractorStepScale?: number
+  attractorInitialX?: number
+  attractorInitialY?: number
+  attractorInitialZ?: number
+  attractorScale?: number
+  attractorWarmupSteps?: number
+  attractorEquation?: AttractorEquation
   R: number
   r: number
   d: number

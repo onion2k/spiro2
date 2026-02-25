@@ -1,4 +1,4 @@
-import type { LayerConfig, NoiseMode, StrokeWidthMode } from '../types'
+import type { LayerConfig, NoiseMode, PathGenerator, StrokeWidthMode } from '../types'
 
 export type ThreeCameraMode = 'orthographic' | 'perspective'
 export type ThreeLineRenderMode = 'fat-lines' | 'instanced-sprites' | 'tube-mesh'
@@ -7,7 +7,8 @@ export type LineMaterialPresetId = 'matte-ribbon' | 'satin-plastic' | 'brushed-m
 
 export type CompiledLayer = {
   id: string
-  fn: ((t: number, u: number, R: number, r: number, d: number) => { x: number; y: number; z: number }) | null
+  generator: PathGenerator | null
+  error: string
 }
 
 export type SpiroRendererConfig = {

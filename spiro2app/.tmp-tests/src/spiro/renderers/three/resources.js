@@ -22,6 +22,38 @@ export function createGlowSpriteTexture() {
 }
 export function disposeRenderableObject(node) {
     const renderObject = node;
+    const disposeMaterialTextures = (material) => {
+        const textureKeys = [
+            'map',
+            'alphaMap',
+            'aoMap',
+            'bumpMap',
+            'clearcoatMap',
+            'clearcoatNormalMap',
+            'clearcoatRoughnessMap',
+            'displacementMap',
+            'emissiveMap',
+            'envMap',
+            'iridescenceMap',
+            'iridescenceThicknessMap',
+            'lightMap',
+            'metalnessMap',
+            'normalMap',
+            'roughnessMap',
+            'sheenColorMap',
+            'sheenRoughnessMap',
+            'specularColorMap',
+            'specularIntensityMap',
+            'thicknessMap',
+            'transmissionMap',
+        ];
+        for (const key of textureKeys) {
+            const texture = material[key];
+            if (texture && typeof texture === 'object' && 'dispose' in texture && typeof texture.dispose === 'function') {
+                texture.dispose();
+            }
+        }
+    };
     if (renderObject.geometry && !renderObject.userData?.skipGeometryDispose) {
         renderObject.geometry.dispose();
     }
@@ -30,10 +62,12 @@ export function disposeRenderableObject(node) {
     }
     if (Array.isArray(renderObject.material)) {
         for (const material of renderObject.material) {
+            disposeMaterialTextures(material);
             material.dispose();
         }
     }
     else if (renderObject.material) {
+        disposeMaterialTextures(renderObject.material);
         renderObject.material.dispose();
     }
 }

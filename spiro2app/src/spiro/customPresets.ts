@@ -5,6 +5,29 @@ export function toLayerPresetData(layer: LayerConfig): LayerPresetData {
     exprX: layer.exprX,
     exprY: layer.exprY,
     exprZ: layer.exprZ,
+    generatorKind: layer.generatorKind,
+    lissajousAx: layer.lissajousAx,
+    lissajousAy: layer.lissajousAy,
+    lissajousAz: layer.lissajousAz,
+    lissajousFx: layer.lissajousFx,
+    lissajousFy: layer.lissajousFy,
+    lissajousFz: layer.lissajousFz,
+    lissajousPhaseX: layer.lissajousPhaseX,
+    lissajousPhaseY: layer.lissajousPhaseY,
+    lissajousPhaseZ: layer.lissajousPhaseZ,
+    lissajousUMixX: layer.lissajousUMixX,
+    lissajousUMixY: layer.lissajousUMixY,
+    lissajousUMixZ: layer.lissajousUMixZ,
+    attractorSigma: layer.attractorSigma,
+    attractorRho: layer.attractorRho,
+    attractorBeta: layer.attractorBeta,
+    attractorStepScale: layer.attractorStepScale,
+    attractorInitialX: layer.attractorInitialX,
+    attractorInitialY: layer.attractorInitialY,
+    attractorInitialZ: layer.attractorInitialZ,
+    attractorScale: layer.attractorScale,
+    attractorWarmupSteps: layer.attractorWarmupSteps,
+    attractorEquation: layer.attractorEquation,
     R: layer.R,
     r: layer.r,
     d: layer.d,
@@ -44,6 +67,43 @@ export function normalizeCustomPreset(input: unknown): CustomPreset | null {
       exprX: data.exprX,
       exprY: data.exprY,
       exprZ: typeof data.exprZ === 'string' ? data.exprZ : '0',
+      generatorKind:
+        data.generatorKind === 'lissajous' || data.generatorKind === 'strange-attractor'
+          ? data.generatorKind
+          : 'parametric',
+      lissajousAx: Number.isFinite(data.lissajousAx) ? Number(data.lissajousAx) : (Number.isFinite(data.R) ? Number(data.R) : 8),
+      lissajousAy: Number.isFinite(data.lissajousAy) ? Number(data.lissajousAy) : (Number.isFinite(data.r) ? Number(data.r) : 3),
+      lissajousAz: Number.isFinite(data.lissajousAz) ? Number(data.lissajousAz) : (Number.isFinite(data.d) ? Number(data.d) : 6),
+      lissajousFx: Number.isFinite(data.lissajousFx) ? Number(data.lissajousFx) : 3,
+      lissajousFy: Number.isFinite(data.lissajousFy) ? Number(data.lissajousFy) : 2,
+      lissajousFz: Number.isFinite(data.lissajousFz) ? Number(data.lissajousFz) : 5,
+      lissajousPhaseX: Number.isFinite(data.lissajousPhaseX) ? Number(data.lissajousPhaseX) : Math.PI / 2,
+      lissajousPhaseY: Number.isFinite(data.lissajousPhaseY) ? Number(data.lissajousPhaseY) : 0,
+      lissajousPhaseZ: Number.isFinite(data.lissajousPhaseZ) ? Number(data.lissajousPhaseZ) : Math.PI / 4,
+      lissajousUMixX: Number.isFinite(data.lissajousUMixX) ? Number(data.lissajousUMixX) : 0.25,
+      lissajousUMixY: Number.isFinite(data.lissajousUMixY) ? Number(data.lissajousUMixY) : 0.2,
+      lissajousUMixZ: Number.isFinite(data.lissajousUMixZ) ? Number(data.lissajousUMixZ) : 0.3,
+      attractorSigma: Number.isFinite(data.attractorSigma) ? Number(data.attractorSigma) : 10,
+      attractorRho: Number.isFinite(data.attractorRho) ? Number(data.attractorRho) : 28,
+      attractorBeta: Number.isFinite(data.attractorBeta) ? Number(data.attractorBeta) : 8 / 3,
+      attractorStepScale: Number.isFinite(data.attractorStepScale) ? Number(data.attractorStepScale) : 1,
+      attractorInitialX: Number.isFinite(data.attractorInitialX) ? Number(data.attractorInitialX) : 0.1,
+      attractorInitialY: Number.isFinite(data.attractorInitialY) ? Number(data.attractorInitialY) : 0,
+      attractorInitialZ: Number.isFinite(data.attractorInitialZ) ? Number(data.attractorInitialZ) : 0,
+      attractorScale: Number.isFinite(data.attractorScale) ? Number(data.attractorScale) : 0.35,
+      attractorWarmupSteps: Number.isFinite(data.attractorWarmupSteps)
+        ? Math.max(0, Math.min(2000, Math.round(Number(data.attractorWarmupSteps))))
+        : 120,
+      attractorEquation:
+        data.attractorEquation === 'rossler' ||
+        data.attractorEquation === 'chen' ||
+        data.attractorEquation === 'thomas' ||
+        data.attractorEquation === 'halvorsen' ||
+        data.attractorEquation === 'aizawa' ||
+        data.attractorEquation === 'lu-chen' ||
+        data.attractorEquation === 'rabinovich-fabrikant'
+          ? data.attractorEquation
+          : 'lorenz',
       R: Number.isFinite(data.R) ? Number(data.R) : 8,
       r: Number.isFinite(data.r) ? Number(data.r) : 3,
       d: Number.isFinite(data.d) ? Number(data.d) : 6,
