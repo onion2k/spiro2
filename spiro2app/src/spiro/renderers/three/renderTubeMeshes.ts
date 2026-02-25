@@ -10,7 +10,7 @@ import {
   Vector3,
 } from 'three'
 
-import { buildLineOffsets, buildSymmetryVariants3D, tangentForTrail, type RuntimeLayer } from '../runtime'
+import { buildLineOffsets, createSymmetryTransforms2D, getSmoothedTrail, tangentForTrail, type RuntimeLayer } from '../runtime'
 
 type RenderTubeMeshesOptions = {
   runtimeLayer: RuntimeLayer
@@ -28,40 +28,6 @@ type RenderTubeMeshesOptions = {
   lineMaterialRoughness: number
   lineMaterialClearcoat: number
   lineMaterialClearcoatRoughness: number
-}
-
-function smoothTrailPoint(trail: RuntimeLayer['trail'], index: number, amount: number) {
-  const current = trail[index]
-  if (!current || amount <= 0 || !current.connected) {
-    return current
-  }
-  const previous = trail[Math.max(0, index - 1)]
-  const next = trail[Math.min(trail.length - 1, index + 1)]
-  if (!previous || !next || !previous.connected || !next.connected) {
-    return current
-  }
-  const clamped = Math.max(0, Math.min(1, amount))
-  const neighborWeight = Math.min(0.45, clamped * 0.45)
-  const selfWeight = 1 - neighborWeight * 2
-  return {
-    ...current,
-    x: current.x * selfWeight + (previous.x + next.x) * neighborWeight,
-    y: current.y * selfWeight + (previous.y + next.y) * neighborWeight,
-    z: current.z * selfWeight + (previous.z + next.z) * neighborWeight,
-  }
-}
-
-function buildSmoothedTrail(trail: RuntimeLayer['trail'], amount: number) {
-  if (amount <= 0 || trail.length < 3) {
-    return trail
-  }
-  const clamped = Math.max(0, Math.min(1, amount))
-  const passes = Math.max(1, Math.min(10, Math.round(clamped * 10)))
-  let output = trail.map((point) => ({ ...point }))
-  for (let pass = 0; pass < passes; pass += 1) {
-    output = output.map((_, index) => smoothTrailPoint(output, index, clamped) ?? output[index])
-  }
-  return output
 }
 
 function createPipeTexture() {
@@ -123,7 +89,14 @@ function buildTrackPoints(options: RenderTubeMeshesOptions) {
   } = options
   const tracks = new Map<string, Vector3[][]>()
   const activeStrip = new Map<string, Vector3[]>()
-  const smoothedTrail = buildSmoothedTrail(runtimeLayer.trail, trailSmoothing)
+  const smoothedTrail = getSmoothedTrail(runtimeLayer, trailSmoothing)
+  const symmetryTransforms = createSymmetryTransforms2D(
+    { x: center.x, y: center.y },
+    mirrorX,
+    mirrorY,
+    rotationalRepeats,
+    rotationOffsetDeg
+  )
 
   for (let i = 0; i < smoothedTrail.length; i += Math.max(1, step)) {
     const current = smoothedTrail[i]
@@ -133,16 +106,14 @@ function buildTrackPoints(options: RenderTubeMeshesOptions) {
     const tangent = tangentForTrail(smoothedTrail, i, step)
     const offsets = buildLineOffsets(runtimeLayer.layer, current.index, runtimeLayer.paramU, tangent)
     for (let line = 0; line < offsets.length; line += 1) {
-      const points = buildSymmetryVariants3D(
-        { x: current.x + offsets[line].x, y: current.y + offsets[line].y, z: current.z + offsets[line].z },
-        { x: center.x, y: center.y, z: 0 },
-        mirrorX,
-        mirrorY,
-        rotationalRepeats,
-        rotationOffsetDeg
-      )
+      const sourceX = current.x + offsets[line].x
+      const sourceY = current.y + offsets[line].y
+      const sourceZ = current.z + offsets[line].z
 
-      for (let pair = 0; pair < points.length; pair += 1) {
+      for (let pair = 0; pair < symmetryTransforms.length; pair += 1) {
+        const transform = symmetryTransforms[pair]
+        const transformedX = sourceX * transform.xAxisX + sourceY * transform.yAxisX + transform.offsetX
+        const transformedY = sourceX * transform.xAxisY + sourceY * transform.yAxisY + transform.offsetY
         const trackKey = `${line}:${pair}`
         let strip = activeStrip.get(trackKey)
         if (!strip) {
@@ -156,7 +127,7 @@ function buildTrackPoints(options: RenderTubeMeshesOptions) {
           strip = []
           activeStrip.set(trackKey, strip)
         }
-        strip.push(new Vector3(points[pair].x - center.x, center.y - points[pair].y, points[pair].z))
+        strip.push(new Vector3(transformedX - center.x, center.y - transformedY, sourceZ))
       }
     }
   }

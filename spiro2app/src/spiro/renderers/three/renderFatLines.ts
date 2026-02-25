@@ -2,8 +2,9 @@ import { BufferGeometry, Color, DoubleSide, Float32BufferAttribute, Mesh, MeshPh
 
 import {
   buildLineOffsets,
-  buildSymmetryVariants3D,
+  createSymmetryTransforms2D,
   colorForPoint,
+  getSmoothedTrail,
   lineWidthForPoint,
   tangentForTrail,
   type RuntimeLayer,
@@ -36,40 +37,8 @@ type RenderFatLinesOptions = {
   lineMaterialTransmission: number
   lineMaterialThickness: number
   lineMaterialIor: number
-}
-
-function smoothTrailPoint(trail: RuntimeLayer['trail'], index: number, amount: number) {
-  const current = trail[index]
-  if (!current || amount <= 0 || !current.connected) {
-    return current
-  }
-  const previous = trail[Math.max(0, index - 1)]
-  const next = trail[Math.min(trail.length - 1, index + 1)]
-  if (!previous || !next || !previous.connected || !next.connected) {
-    return current
-  }
-  const clamped = Math.max(0, Math.min(1, amount))
-  const neighborWeight = Math.min(0.45, clamped * 0.45)
-  const selfWeight = 1 - neighborWeight * 2
-  return {
-    ...current,
-    x: current.x * selfWeight + (previous.x + next.x) * neighborWeight,
-    y: current.y * selfWeight + (previous.y + next.y) * neighborWeight,
-    z: current.z * selfWeight + (previous.z + next.z) * neighborWeight,
-  }
-}
-
-function buildSmoothedTrail(trail: RuntimeLayer['trail'], amount: number) {
-  if (amount <= 0 || trail.length < 3) {
-    return trail
-  }
-  const clamped = Math.max(0, Math.min(1, amount))
-  const passes = Math.max(1, Math.min(10, Math.round(clamped * 10)))
-  let output = trail.map((point) => ({ ...point }))
-  for (let pass = 0; pass < passes; pass += 1) {
-    output = output.map((_, index) => smoothTrailPoint(output, index, clamped) ?? output[index])
-  }
-  return output
+  existingMeshes?: Mesh[]
+  existingMaterial?: MeshPhysicalMaterial
 }
 
 type TrackStrip = { positions: number[]; colors: number[] }
@@ -128,7 +97,39 @@ function createPhysicalRibbonMaterial(options: RibbonMaterialOptions) {
   })
 }
 
-function buildRibbonMesh(strip: TrackStrip, lineWidth: number, materialOptions: RibbonMaterialOptions) {
+function updatePhysicalRibbonMaterial(material: MeshPhysicalMaterial, options: RibbonMaterialOptions) {
+  const {
+    lineMaterialColor,
+    lineMaterialMetalness,
+    lineMaterialRoughness,
+    lineMaterialClearcoat,
+    lineMaterialClearcoatRoughness,
+    lineMaterialTransmission,
+    lineMaterialThickness,
+    lineMaterialIor,
+  } = options
+
+  const baseColor = new Color(lineMaterialColor)
+  const sheenColor = baseColor.clone().lerp(new Color('#ffffff'), 0.7)
+  const transmission = Math.max(0, Math.min(1, lineMaterialTransmission))
+  const isTransmissive = transmission > 0.001
+
+  material.color.copy(baseColor)
+  material.sheenColor = sheenColor
+  material.transparent = isTransmissive
+  material.depthWrite = !isTransmissive
+  material.metalness = Math.max(0, Math.min(1, lineMaterialMetalness))
+  material.roughness = Math.max(0, Math.min(1, lineMaterialRoughness))
+  material.clearcoat = Math.max(0, Math.min(1, lineMaterialClearcoat))
+  material.clearcoatRoughness = Math.max(0, Math.min(1, lineMaterialClearcoatRoughness))
+  material.transmission = transmission
+  material.thickness = Math.max(0, lineMaterialThickness)
+  material.ior = Math.max(1, Math.min(2.333, lineMaterialIor))
+  material.sheenRoughness = Math.max(0.08, Math.min(1, lineMaterialRoughness * 0.65))
+  material.needsUpdate = true
+}
+
+function buildRibbonGeometry(strip: TrackStrip, lineWidth: number) {
   const pointCount = Math.floor(strip.positions.length / 3)
   if (pointCount < 2) {
     return null
@@ -215,8 +216,22 @@ function buildRibbonMesh(strip: TrackStrip, lineWidth: number, materialOptions: 
   geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2))
   geometry.setIndex(indices)
   geometry.computeVertexNormals()
+  return geometry
+}
 
-  const mesh = new Mesh(geometry, createPhysicalRibbonMaterial(materialOptions))
+function buildRibbonMesh(strip: TrackStrip, lineWidth: number, material: MeshPhysicalMaterial, existingMesh?: Mesh) {
+  const geometry = buildRibbonGeometry(strip, lineWidth)
+  if (!geometry) {
+    return null
+  }
+  if (existingMesh) {
+    const previousGeometry = existingMesh.geometry as BufferGeometry
+    previousGeometry.dispose()
+    existingMesh.geometry = geometry
+    existingMesh.material = material
+    return existingMesh
+  }
+  const mesh = new Mesh(geometry, material)
   mesh.frustumCulled = false
   return mesh
 }
@@ -260,6 +275,8 @@ export function renderFatLines(options: RenderFatLinesOptions) {
     lineMaterialTransmission,
     lineMaterialThickness,
     lineMaterialIor,
+    existingMeshes = [],
+    existingMaterial,
   } = options
 
   const layer = runtimeLayer.layer
@@ -275,11 +292,23 @@ export function renderFatLines(options: RenderFatLinesOptions) {
     lineMaterialThickness,
     lineMaterialIor,
   }
+  const sharedMaterial = existingMaterial ?? createPhysicalRibbonMaterial(materialOptions)
+  if (existingMaterial) {
+    updatePhysicalRibbonMaterial(existingMaterial, materialOptions)
+  }
   const bucketTracks: Array<Map<string, Track>> = Array.from({ length: bucketCount }, () => new Map())
   const previousBucketByTrack = new Map<string, number>()
   const depthBiasByTrack = new Map<string, number>()
   const dashCycle = Math.max(1, dashLength + dashGap)
-  const smoothedTrail = buildSmoothedTrail(runtimeLayer.trail, trailSmoothing)
+  const smoothedTrail = getSmoothedTrail(runtimeLayer, trailSmoothing)
+  const symmetryTransforms = createSymmetryTransforms2D(
+    { x: center.x, y: center.y },
+    mirrorX,
+    mirrorY,
+    rotationalRepeats,
+    rotationOffsetDeg
+  )
+  const hueColor = new Color()
 
   for (let i = 0; i < smoothedTrail.length; i += Math.max(1, step)) {
     const current = smoothedTrail[i]
@@ -290,7 +319,8 @@ export function renderFatLines(options: RenderFatLinesOptions) {
     const offsets = buildLineOffsets(layer, current.index, runtimeLayer.paramU, tangent)
     const linePairs = offsets.length
     const style = colorForPoint(current, layer, nowSec)
-    const rgb = new Color(`hsl(${style.hue}, 90%, 70%)`)
+    const normalizedHue = (((style.hue % 360) + 360) % 360) / 360
+    hueColor.setHSL(normalizedHue, 0.9, 0.7)
     const computedWidth = lineWidthForPoint(current, strokeWidthMode, baseLineWidth, lineWidthBoost)
     const bucketIndex =
       bucketCount === 1
@@ -304,16 +334,14 @@ export function renderFatLines(options: RenderFatLinesOptions) {
           )
 
     for (let line = 0; line < linePairs; line += 1) {
-      const points = buildSymmetryVariants3D(
-        { x: current.x + offsets[line].x, y: current.y + offsets[line].y, z: current.z + offsets[line].z },
-        { x: center.x, y: center.y, z: 0 },
-        mirrorX,
-        mirrorY,
-        rotationalRepeats,
-        rotationOffsetDeg
-      )
+      const sourceX = current.x + offsets[line].x
+      const sourceY = current.y + offsets[line].y
+      const sourceZ = current.z + offsets[line].z
 
-      for (let pair = 0; pair < points.length; pair += 1) {
+      for (let pair = 0; pair < symmetryTransforms.length; pair += 1) {
+        const transform = symmetryTransforms[pair]
+        const transformedX = sourceX * transform.xAxisX + sourceY * transform.yAxisX + transform.offsetX
+        const transformedY = sourceX * transform.xAxisY + sourceY * transform.yAxisY + transform.offsetY
         const trackKey = `${line}:${pair}`
         const wasBucket = previousBucketByTrack.get(trackKey)
         const dashPhase = ((current.index % dashCycle) + dashCycle) % dashCycle
@@ -340,14 +368,15 @@ export function renderFatLines(options: RenderFatLinesOptions) {
           depthBiasByTrack.set(trackKey, trackDepthBias(trackKey))
         }
         const zBias = depthBiasByTrack.get(trackKey) ?? 0
-        track.positions.push(points[pair].x - center.x, center.y - points[pair].y, points[pair].z + zBias)
-        track.colors.push(rgb.r, rgb.g, rgb.b)
+        track.positions.push(transformedX - center.x, center.y - transformedY, sourceZ + zBias)
+        track.colors.push(hueColor.r, hueColor.g, hueColor.b)
         previousBucketByTrack.set(trackKey, bucketIndex)
       }
     }
   }
 
   const nodes: Mesh[] = []
+  let reuseMeshIndex = 0
   for (let bucket = 0; bucket < bucketCount; bucket += 1) {
     const widthFactor = bucketCount === 1 ? 0 : bucket / (bucketCount - 1)
     const lineWidth = baseLineWidth + widthRange * widthFactor
@@ -357,11 +386,21 @@ export function renderFatLines(options: RenderFatLinesOptions) {
         track.strips.push({ positions: track.positions, colors: track.colors })
       }
       for (const strip of track.strips) {
-        const ribbonMesh = buildRibbonMesh(strip, lineWidth, materialOptions)
+        const ribbonMesh = buildRibbonMesh(strip, lineWidth, sharedMaterial, existingMeshes[reuseMeshIndex])
         if (ribbonMesh) {
           nodes.push(ribbonMesh)
+          reuseMeshIndex += 1
         }
       }
+    }
+  }
+
+  if (nodes.length === 0 && !existingMaterial) {
+    sharedMaterial.dispose()
+  } else {
+    // Share one material across strips; dispose once when clearing the first mesh.
+    for (let i = 0; i < nodes.length; i += 1) {
+      nodes[i].userData = { ...nodes[i].userData, skipMaterialDispose: i > 0 }
     }
   }
 

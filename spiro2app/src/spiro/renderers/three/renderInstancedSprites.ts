@@ -14,8 +14,9 @@ import {
 
 import {
   buildLineOffsets,
-  buildSymmetryVariants3D,
+  createSymmetryTransforms2D,
   colorForPoint,
+  getSmoothedTrail,
   lineWidthForPoint,
   tangentForTrail,
   type RuntimeLayer,
@@ -63,40 +64,6 @@ type RenderInstancedSpritesOptions = {
   dashLength: number
   dashGap: number
   existingMesh?: SpriteBatchMesh
-}
-
-function smoothTrailPoint(trail: RuntimeLayer['trail'], index: number, amount: number) {
-  const current = trail[index]
-  if (!current || amount <= 0 || !current.connected) {
-    return current
-  }
-  const previous = trail[Math.max(0, index - 1)]
-  const next = trail[Math.min(trail.length - 1, index + 1)]
-  if (!previous || !next || !previous.connected || !next.connected) {
-    return current
-  }
-  const clamped = Math.max(0, Math.min(1, amount))
-  const neighborWeight = Math.min(0.45, clamped * 0.45)
-  const selfWeight = 1 - neighborWeight * 2
-  return {
-    ...current,
-    x: current.x * selfWeight + (previous.x + next.x) * neighborWeight,
-    y: current.y * selfWeight + (previous.y + next.y) * neighborWeight,
-    z: current.z * selfWeight + (previous.z + next.z) * neighborWeight,
-  }
-}
-
-function buildSmoothedTrail(trail: RuntimeLayer['trail'], amount: number) {
-  if (amount <= 0 || trail.length < 3) {
-    return trail
-  }
-  const clamped = Math.max(0, Math.min(1, amount))
-  const passes = Math.max(1, Math.min(10, Math.round(clamped * 10)))
-  let output = trail.map((point) => ({ ...point }))
-  for (let pass = 0; pass < passes; pass += 1) {
-    output = output.map((_, index) => smoothTrailPoint(output, index, clamped) ?? output[index])
-  }
-  return output
 }
 
 function clampSpriteSoftness(value: number) {
@@ -278,10 +245,18 @@ export function renderInstancedSprites(options: RenderInstancedSpritesOptions): 
   const layer = runtimeLayer.layer
   const spritePositions: number[] = []
   const spriteSizes: number[] = []
-  const spriteColors: Color[] = []
+  const spriteColors: number[] = []
   const dashCycle = Math.max(1, dashLength + dashGap)
   const sizeScale = Math.max(0.1, spriteSizeScale)
-  const smoothedTrail = buildSmoothedTrail(runtimeLayer.trail, trailSmoothing)
+  const smoothedTrail = getSmoothedTrail(runtimeLayer, trailSmoothing)
+  const symmetryTransforms = createSymmetryTransforms2D(
+    { x: center.x, y: center.y },
+    mirrorX,
+    mirrorY,
+    rotationalRepeats,
+    rotationOffsetDeg
+  )
+  const hueColor = new Color()
 
   for (let i = Math.max(step, 1); i < smoothedTrail.length; i += step) {
     const current = smoothedTrail[i]
@@ -300,25 +275,24 @@ export function renderInstancedSprites(options: RenderInstancedSpritesOptions): 
     const tangent = tangentForTrail(smoothedTrail, i, step)
     const pointOffsets = buildLineOffsets(layer, current.index, runtimeLayer.paramU, tangent)
     const style = colorForPoint(current, layer, nowSec)
-    const rgb = new Color(`hsl(${style.hue}, 90%, 70%)`)
+    const normalizedHue = (((style.hue % 360) + 360) % 360) / 360
+    hueColor.setHSL(normalizedHue, 0.9, 0.7)
     const spriteSize = Math.max(
       1.8,
       lineWidthForPoint(current, strokeWidthMode, baseLineWidth, lineWidthBoost) * 2 * sizeScale
     )
 
     for (const offset of pointOffsets) {
-      const copies = buildSymmetryVariants3D(
-        { x: current.x + offset.x, y: current.y + offset.y, z: current.z + offset.z },
-        { x: center.x, y: center.y, z: 0 },
-        mirrorX,
-        mirrorY,
-        rotationalRepeats,
-        rotationOffsetDeg
-      )
-      for (const copy of copies) {
-        spritePositions.push(copy.x - center.x, center.y - copy.y, copy.z)
+      const sourceX = current.x + offset.x
+      const sourceY = current.y + offset.y
+      const sourceZ = current.z + offset.z
+      for (let transformIndex = 0; transformIndex < symmetryTransforms.length; transformIndex += 1) {
+        const transform = symmetryTransforms[transformIndex]
+        const transformedX = sourceX * transform.xAxisX + sourceY * transform.yAxisX + transform.offsetX
+        const transformedY = sourceX * transform.xAxisY + sourceY * transform.yAxisY + transform.offsetY
+        spritePositions.push(transformedX - center.x, center.y - transformedY, sourceZ)
         spriteSizes.push(spriteSize)
-        spriteColors.push(rgb)
+        spriteColors.push(hueColor.r, hueColor.g, hueColor.b)
       }
     }
   }
@@ -346,9 +320,9 @@ export function renderInstancedSprites(options: RenderInstancedSpritesOptions): 
     offsetArray[p + 1] = spritePositions[p + 1]
     offsetArray[p + 2] = spritePositions[p + 2]
     sizeArray[i] = spriteSizes[i]
-    colorArray[p] = spriteColors[i].r
-    colorArray[p + 1] = spriteColors[i].g
-    colorArray[p + 2] = spriteColors[i].b
+    colorArray[p] = spriteColors[p]
+    colorArray[p + 1] = spriteColors[p + 1]
+    colorArray[p + 2] = spriteColors[p + 2]
   }
 
   mesh.userData.offsetAttr.needsUpdate = true

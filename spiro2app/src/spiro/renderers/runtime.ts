@@ -18,6 +18,9 @@ export type RuntimeLayer = {
 
 export type RuntimeState = {
   runtimeLayers: RuntimeLayer[]
+  runtimeLayerById: Map<string, RuntimeLayer>
+  compiledLayersRef: CompiledLayer[]
+  compiledGeneratorById: Map<string, CompiledLayer['generator']>
   prevTimeMs: number
   fpsEma: number
 }
@@ -60,18 +63,22 @@ function createGeneratorState(generator: CompiledLayer['generator']) {
 
 export function createRuntimeState(layers: LayerConfig[], compiledLayers: CompiledLayer[]): RuntimeState {
   const compiledMap = new Map(compiledLayers.map((entry) => [entry.id, entry.generator]))
+  const runtimeLayers = layers.map((layer) => ({
+    layer,
+    generator: compiledMap.get(layer.id) ?? null,
+    generatorState: createGeneratorState(compiledMap.get(layer.id) ?? null),
+    paramT: 0,
+    paramU: 0,
+    previous: null,
+    previousDirection: null,
+    trail: [],
+    pointIndex: 0,
+  }))
   return {
-    runtimeLayers: layers.map((layer) => ({
-      layer,
-      generator: compiledMap.get(layer.id) ?? null,
-      generatorState: createGeneratorState(compiledMap.get(layer.id) ?? null),
-      paramT: 0,
-      paramU: 0,
-      previous: null,
-      previousDirection: null,
-      trail: [],
-      pointIndex: 0,
-    })),
+    runtimeLayers,
+    runtimeLayerById: new Map(runtimeLayers.map((runtimeLayer) => [runtimeLayer.layer.id, runtimeLayer])),
+    compiledLayersRef: compiledLayers,
+    compiledGeneratorById: compiledMap,
     prevTimeMs: 0,
     fpsEma: 60,
   }
@@ -147,17 +154,33 @@ export function stepRuntime(options: StepRuntimeOptions) {
     ...decisionStrategies,
   }
 
-  const compiledMap = new Map(compiledLayers.map((entry) => [entry.id, entry.generator]))
-  const byId = new Map(state.runtimeLayers.map((runtime) => [runtime.layer.id, runtime]))
-  state.runtimeLayers = layers.map((layer) => {
-    const existing = byId.get(layer.id)
-    const generator = compiledMap.get(layer.id) ?? null
+  if (state.compiledLayersRef !== compiledLayers) {
+    state.compiledLayersRef = compiledLayers
+    state.compiledGeneratorById = new Map(compiledLayers.map((entry) => [entry.id, entry.generator]))
+  }
+
+  const nextRuntimeLayers: RuntimeLayer[] = []
+  const nextRuntimeLayerById = new Map<string, RuntimeLayer>()
+  for (const layer of layers) {
+    const existing = state.runtimeLayerById.get(layer.id)
+    const generator = state.compiledGeneratorById.get(layer.id) ?? null
     if (existing) {
       existing.layer = layer
+      if (existing.generator !== generator) {
+        existing.generatorState = createGeneratorState(generator)
+        existing.paramT = 0
+        existing.paramU = 0
+        existing.previous = null
+        existing.previousDirection = null
+        existing.trail = []
+        existing.pointIndex = 0
+      }
       existing.generator = generator
-      return existing
+      nextRuntimeLayers.push(existing)
+      nextRuntimeLayerById.set(layer.id, existing)
+      continue
     }
-    return {
+    const created: RuntimeLayer = {
       layer,
       generator,
       generatorState: createGeneratorState(generator),
@@ -168,7 +191,11 @@ export function stepRuntime(options: StepRuntimeOptions) {
       trail: [],
       pointIndex: 0,
     }
-  })
+    nextRuntimeLayers.push(created)
+    nextRuntimeLayerById.set(layer.id, created)
+  }
+  state.runtimeLayers = nextRuntimeLayers
+  state.runtimeLayerById = nextRuntimeLayerById
 
   if (dt > 0) {
     const fps = 1 / dt
@@ -314,6 +341,143 @@ export function tangentForTrail(trail: TrailPoint[], index: number, step: number
     y: next.y - previous.y,
     z: next.z - previous.z,
   })
+}
+
+function smoothTrailPoint(trail: TrailPoint[], index: number, amount: number) {
+  const current = trail[index]
+  if (!current || amount <= 0 || !current.connected) {
+    return current
+  }
+  const previous = trail[Math.max(0, index - 1)]
+  const next = trail[Math.min(trail.length - 1, index + 1)]
+  if (!previous || !next || !previous.connected || !next.connected) {
+    return current
+  }
+  const clamped = Math.max(0, Math.min(1, amount))
+  const neighborWeight = Math.min(0.45, clamped * 0.45)
+  const selfWeight = 1 - neighborWeight * 2
+  return {
+    ...current,
+    x: current.x * selfWeight + (previous.x + next.x) * neighborWeight,
+    y: current.y * selfWeight + (previous.y + next.y) * neighborWeight,
+    z: current.z * selfWeight + (previous.z + next.z) * neighborWeight,
+  }
+}
+
+function buildSmoothedTrail(trail: TrailPoint[], amount: number) {
+  if (amount <= 0 || trail.length < 3) {
+    return trail
+  }
+  const clamped = Math.max(0, Math.min(1, amount))
+  const passes = Math.max(1, Math.min(10, Math.round(clamped * 10)))
+  let output = trail.map((point) => ({ ...point }))
+  for (let pass = 0; pass < passes; pass += 1) {
+    output = output.map((_, index) => smoothTrailPoint(output, index, clamped) ?? output[index])
+  }
+  return output
+}
+
+type SmoothedTrailCacheEntry = {
+  trail: TrailPoint[]
+  trailLength: number
+  lastPointIndex: number
+  smoothingAmount: number
+  result: TrailPoint[]
+}
+
+const smoothedTrailCache = new WeakMap<RuntimeLayer, SmoothedTrailCacheEntry>()
+
+export function getSmoothedTrail(runtimeLayer: RuntimeLayer, smoothingAmount: number) {
+  if (smoothingAmount <= 0 || runtimeLayer.trail.length < 3) {
+    return runtimeLayer.trail
+  }
+  const trail = runtimeLayer.trail
+  const trailLength = trail.length
+  const lastPointIndex = trailLength > 0 ? trail[trailLength - 1]?.index ?? -1 : -1
+  const cached = smoothedTrailCache.get(runtimeLayer)
+  if (
+    cached &&
+    cached.trail === trail &&
+    cached.trailLength === trailLength &&
+    cached.lastPointIndex === lastPointIndex &&
+    cached.smoothingAmount === smoothingAmount
+  ) {
+    return cached.result
+  }
+  const result = buildSmoothedTrail(trail, smoothingAmount)
+  smoothedTrailCache.set(runtimeLayer, {
+    trail,
+    trailLength,
+    lastPointIndex,
+    smoothingAmount,
+    result,
+  })
+  return result
+}
+
+export type SymmetryTransform2D = {
+  xAxisX: number
+  xAxisY: number
+  yAxisX: number
+  yAxisY: number
+  offsetX: number
+  offsetY: number
+}
+
+export function createSymmetryTransforms2D(
+  center: { x: number; y: number },
+  mirrorX: boolean,
+  mirrorY: boolean,
+  rotationalRepeats: number,
+  rotationOffsetDeg: number
+) {
+  const transforms: SymmetryTransform2D[] = []
+  const repeats = Math.max(1, rotationalRepeats)
+  const offsetRad = (rotationOffsetDeg * Math.PI) / 180
+  for (let i = 0; i < repeats; i += 1) {
+    const angle = offsetRad + (i / repeats) * Math.PI * 2
+    const cosA = Math.cos(angle)
+    const sinA = Math.sin(angle)
+    transforms.push({
+      xAxisX: cosA,
+      xAxisY: sinA,
+      yAxisX: -sinA,
+      yAxisY: cosA,
+      offsetX: center.x - center.x * cosA + center.y * sinA,
+      offsetY: center.y - center.x * sinA - center.y * cosA,
+    })
+    if (mirrorX) {
+      transforms.push({
+        xAxisX: -cosA,
+        xAxisY: sinA,
+        yAxisX: sinA,
+        yAxisY: cosA,
+        offsetX: center.x + center.x * cosA - center.y * sinA,
+        offsetY: center.y - center.x * sinA - center.y * cosA,
+      })
+    }
+    if (mirrorY) {
+      transforms.push({
+        xAxisX: cosA,
+        xAxisY: -sinA,
+        yAxisX: -sinA,
+        yAxisY: -cosA,
+        offsetX: center.x - center.x * cosA + center.y * sinA,
+        offsetY: center.y + center.x * sinA + center.y * cosA,
+      })
+    }
+    if (mirrorX && mirrorY) {
+      transforms.push({
+        xAxisX: -cosA,
+        xAxisY: -sinA,
+        yAxisX: sinA,
+        yAxisY: -cosA,
+        offsetX: center.x + center.x * cosA - center.y * sinA,
+        offsetY: center.y + center.x * sinA + center.y * cosA,
+      })
+    }
+  }
+  return transforms
 }
 
 export function buildLineOffsets(layer: LayerConfig, pointIndex: number, paramU: number, tangent?: Point3) {

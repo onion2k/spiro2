@@ -2,6 +2,7 @@ import type { LayerConfig, NoiseMode, PathGenerator, StrokeWidthMode } from '../
 
 export type ThreeCameraMode = 'orthographic' | 'perspective'
 export type ThreeLineRenderMode = 'fat-lines' | 'instanced-sprites' | 'tube-mesh'
+export type TrailDetailMode = 'balanced' | 'detailed'
 export type GlobalDrawMode = 'lines'
 export type LineMaterialPresetId = 'matte-ribbon' | 'satin-plastic' | 'brushed-metal' | 'chrome' | 'frosted-glass' | 'custom'
 
@@ -34,6 +35,7 @@ export type SpiroRendererConfig = {
   baseLineWidth: number
   lineWidthBoost: number
   trailSmoothing: number
+  trailDetailMode: TrailDetailMode
   dashedLines: boolean
   dashLength: number
   dashGap: number

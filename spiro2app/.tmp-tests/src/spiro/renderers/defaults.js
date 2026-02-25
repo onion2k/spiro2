@@ -19,6 +19,7 @@ export const DEFAULT_GLOBAL_SETTINGS = {
     baseLineWidth: 2.6,
     lineWidthBoost: 4.2,
     trailSmoothing: 0,
+    trailDetailMode: 'balanced',
     dashedLines: false,
     dashLength: 10,
     dashGap: 6,

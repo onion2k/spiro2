@@ -3,6 +3,7 @@ import type { RefObject } from 'react'
 import {
   ACESFilmicToneMapping,
   AmbientLight,
+  Color,
   BufferGeometry,
   DirectionalLight,
   DoubleSide,
@@ -12,6 +13,7 @@ import {
   Line,
   LineBasicMaterial,
   Mesh,
+  MeshPhysicalMaterial,
   MeshBasicMaterial,
   OrthographicCamera,
   PMREMGenerator,
@@ -27,12 +29,27 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import type { RendererHudStats, SpiroRendererConfig } from './types'
 import { createRuntimeState, stepRuntime } from './runtime'
 import { createThreeCamera, resizeThreeCamera } from './three/camera'
-import { clearGroup, createGlowSpriteTexture } from './three/resources'
+import { clearGroup, createGlowSpriteTexture, disposeRenderableObject } from './three/resources'
 
 type ThreeRendererOptions = SpiroRendererConfig & {
   containerRef: RefObject<HTMLDivElement | null>
   enabled: boolean
   onHudStats?: (stats: RendererHudStats) => void
+}
+
+type TrailStartMarker = {
+  outer: Mesh
+  core: Mesh
+  phaseOffset: number
+}
+
+function hashLayerPhase(layerId: string) {
+  let hash = 2166136261
+  for (let i = 0; i < layerId.length; i += 1) {
+    hash ^= layerId.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return ((hash >>> 0) % 360) * (Math.PI / 180)
 }
 
 export function useThreeRenderer(options: ThreeRendererOptions) {
@@ -61,6 +78,7 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     baseLineWidth,
     lineWidthBoost,
     trailSmoothing,
+    trailDetailMode,
     dashedLines,
     dashLength,
     dashGap,
@@ -155,6 +173,8 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
       scene.add(ambientLight, skyFill, keyLight, fillLight, rimLight)
       const drawGroup = new Group()
       scene.add(drawGroup)
+      const trailStartMarkerGroup = new Group()
+      scene.add(trailStartMarkerGroup)
       const centerMarkerGeometry = new SphereGeometry(150, 28, 20)
       const centerMarkerMaterial = new MeshBasicMaterial({
         color: 0xff2d55,
@@ -230,6 +250,8 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
 
       const spriteGeometry = new PlaneGeometry(1, 1)
       const spriteTexture = createGlowSpriteTexture()
+      const trailStartOuterGeometry = new SphereGeometry(26, 18, 14)
+      const trailStartCoreGeometry = new SphereGeometry(9, 14, 10)
       const camera = createThreeCamera(threeCameraMode)
       const controls = new OrbitControls(camera, renderer.domElement)
       controls.enableDamping = true
@@ -257,6 +279,9 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
 
       const runtime = createRuntimeState(layers, compiledLayers)
       const spriteMeshByLayer = new Map<string, NonNullable<ReturnType<NonNullable<typeof renderInstancedSpritesFn>>>>()
+      const fatLineMeshesByLayer = new Map<string, Mesh[]>()
+      const fatLineMaterialByLayer = new Map<string, MeshPhysicalMaterial>()
+      const trailStartMarkersByLayer = new Map<string, TrailStartMarker>()
       let staticTubeReady = false
       let staticTubeTrailPoints = 0
       let staticTubeLineObjects = 0
@@ -266,6 +291,7 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
       let lastFrameMs = 0
       let nextHudUpdateMs = 0
       let handledRecenterTick = recenterTickRef.current
+      const maxVisibleTrailSamplesPerLayer = trailDetailMode === 'detailed' ? 9000 : 3000
 
       const enforceStartupPose = (width: number, height: number) => {
         const startupDistance = 2000
@@ -331,6 +357,8 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
         let instancedSprites = 0
         let lineObjects = 0
         const activeSpriteLayerIds = new Set<string>()
+        const activeFatLineLayerIds = new Set<string>()
+        const activeTrailStartMarkerLayerIds = new Set<string>()
         if (threeLineRenderMode === 'tube-mesh' && renderTubeMeshesFn) {
           if (!staticTubeReady) {
             const staticLayers = layers.map((layer) => ({ ...layer, lineForever: true }))
@@ -444,7 +472,6 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
             width,
             height,
           })
-          clearGroup(drawGroup)
 
           for (const runtimeLayer of runtime.runtimeLayers) {
             const layer = runtimeLayer.layer
@@ -452,7 +479,10 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
               continue
             }
             trailPoints += runtimeLayer.trail.length
-            const step = runtimeLayer.trail.length > 3000 ? Math.ceil(runtimeLayer.trail.length / 3000) : 1
+            const step =
+              runtimeLayer.trail.length > maxVisibleTrailSamplesPerLayer
+                ? Math.ceil(runtimeLayer.trail.length / maxVisibleTrailSamplesPerLayer)
+                : 1
             if (threeLineRenderMode === 'instanced-sprites' && renderInstancedSpritesFn) {
               const sprites = renderInstancedSpritesFn({
                 runtimeLayer,
@@ -486,7 +516,9 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
                   typeof sprites.userData?.spriteInstanceCount === 'number' ? sprites.userData.spriteInstanceCount : 0
                 instancedSprites += spriteCount
                 lineObjects += 1
-                drawGroup.add(sprites)
+                if (sprites.parent !== drawGroup) {
+                  drawGroup.add(sprites)
+                }
               }
             } else if (threeLineRenderMode === 'fat-lines' && renderFatLinesFn) {
               const fatLines = renderFatLinesFn({
@@ -515,12 +547,59 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
                 lineMaterialTransmission,
                 lineMaterialThickness,
                 lineMaterialIor,
+                existingMeshes: fatLineMeshesByLayer.get(runtimeLayer.layer.id) ?? [],
+                existingMaterial: fatLineMaterialByLayer.get(runtimeLayer.layer.id),
               })
+              activeFatLineLayerIds.add(runtimeLayer.layer.id)
+              const previousLayerMeshes = fatLineMeshesByLayer.get(runtimeLayer.layer.id)
+              if (previousLayerMeshes && previousLayerMeshes.length > fatLines.length) {
+                for (let i = fatLines.length; i < previousLayerMeshes.length; i += 1) {
+                  const staleMesh = previousLayerMeshes[i]
+                  if (!staleMesh) {
+                    continue
+                  }
+                  if (staleMesh.parent === drawGroup) {
+                    drawGroup.remove(staleMesh)
+                  }
+                  disposeRenderableObject(staleMesh)
+                }
+              }
+              fatLineMeshesByLayer.set(runtimeLayer.layer.id, fatLines)
+              if (fatLines.length > 0 && fatLines[0]?.material instanceof MeshPhysicalMaterial) {
+                fatLineMaterialByLayer.set(runtimeLayer.layer.id, fatLines[0].material)
+              }
               lineObjects += fatLines.length
               for (const line of fatLines) {
                 drawGroup.add(line)
               }
             }
+          }
+
+          if (threeLineRenderMode === 'fat-lines') {
+            for (const [layerId, meshes] of fatLineMeshesByLayer) {
+              if (activeFatLineLayerIds.has(layerId)) {
+                continue
+              }
+              for (const mesh of meshes) {
+                if (mesh.parent === drawGroup) {
+                  drawGroup.remove(mesh)
+                }
+                disposeRenderableObject(mesh)
+              }
+              fatLineMeshesByLayer.delete(layerId)
+              fatLineMaterialByLayer.delete(layerId)
+            }
+          } else if (fatLineMeshesByLayer.size > 0) {
+            for (const [, meshes] of fatLineMeshesByLayer) {
+              for (const mesh of meshes) {
+                if (mesh.parent === drawGroup) {
+                  drawGroup.remove(mesh)
+                }
+                disposeRenderableObject(mesh)
+              }
+            }
+            fatLineMeshesByLayer.clear()
+            fatLineMaterialByLayer.clear()
           }
         }
 
@@ -529,14 +608,87 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
             if (activeSpriteLayerIds.has(layerId)) {
               continue
             }
+            if (spriteMesh.parent === drawGroup) {
+              drawGroup.remove(spriteMesh)
+            }
             disposeSpriteBatchMeshFn(spriteMesh)
             spriteMeshByLayer.delete(layerId)
           }
         } else if (disposeSpriteBatchMeshFn) {
           for (const [layerId, spriteMesh] of spriteMeshByLayer) {
+            if (spriteMesh.parent === drawGroup) {
+              drawGroup.remove(spriteMesh)
+            }
             disposeSpriteBatchMeshFn(spriteMesh)
             spriteMeshByLayer.delete(layerId)
           }
+        }
+
+        for (const runtimeLayer of runtime.runtimeLayers) {
+          const layer = runtimeLayer.layer
+          const startPoint = runtimeLayer.trail[0]
+          if (!layer.visible || !startPoint) {
+            continue
+          }
+          activeTrailStartMarkerLayerIds.add(layer.id)
+          let marker = trailStartMarkersByLayer.get(layer.id)
+          if (!marker) {
+            const hue = (((layer.baseHue % 360) + 360) % 360) / 360
+            const outerColor = new Color().setHSL(hue, 0.95, 0.62)
+            const coreColor = new Color().setHSL(hue, 1, 0.82)
+            const outerMaterial = new MeshBasicMaterial({
+              color: outerColor,
+              toneMapped: false,
+              transparent: true,
+              opacity: 0.7,
+              depthTest: false,
+              depthWrite: false,
+            })
+            const coreMaterial = new MeshBasicMaterial({
+              color: coreColor,
+              toneMapped: false,
+              transparent: true,
+              opacity: 0.95,
+              depthTest: false,
+              depthWrite: false,
+            })
+            const outer = new Mesh(trailStartOuterGeometry, outerMaterial)
+            const core = new Mesh(trailStartCoreGeometry, coreMaterial)
+            outer.renderOrder = 910
+            core.renderOrder = 911
+            outer.frustumCulled = false
+            core.frustumCulled = false
+            trailStartMarkerGroup.add(outer, core)
+            marker = {
+              outer,
+              core,
+              phaseOffset: hashLayerPhase(layer.id),
+            }
+            trailStartMarkersByLayer.set(layer.id, marker)
+          }
+
+          const x = startPoint.x - width * 0.5
+          const y = height * 0.5 - startPoint.y
+          const z = startPoint.z
+          const pulse = 0.7 + 0.3 * Math.sin(timeMs * 0.009 + marker.phaseOffset)
+          const flicker = 0.6 + 0.4 * Math.sin(timeMs * 0.016 + marker.phaseOffset * 1.7)
+
+          marker.outer.position.set(x, y, z)
+          marker.core.position.set(x, y, z)
+          marker.outer.scale.setScalar(0.95 + pulse * 0.7)
+          marker.core.scale.setScalar(0.85 + pulse * 0.35)
+          ;(marker.outer.material as MeshBasicMaterial).opacity = 0.38 + flicker * 0.34
+          ;(marker.core.material as MeshBasicMaterial).opacity = 0.72 + flicker * 0.28
+        }
+
+        for (const [layerId, marker] of trailStartMarkersByLayer) {
+          if (activeTrailStartMarkerLayerIds.has(layerId)) {
+            continue
+          }
+          trailStartMarkerGroup.remove(marker.outer, marker.core)
+          disposeRenderableObject(marker.outer)
+          disposeRenderableObject(marker.core)
+          trailStartMarkersByLayer.delete(layerId)
         }
 
         if (controls.enabled) {
@@ -574,16 +726,22 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
         cancelAnimationFrame(animationFrame)
         window.removeEventListener('resize', resize)
         clearGroup(drawGroup)
+        clearGroup(trailStartMarkerGroup)
         if (disposeSpriteBatchMeshFn) {
           for (const [, spriteMesh] of spriteMeshByLayer) {
             disposeSpriteBatchMeshFn(spriteMesh)
           }
           spriteMeshByLayer.clear()
         }
+        fatLineMeshesByLayer.clear()
+        fatLineMaterialByLayer.clear()
+        trailStartMarkersByLayer.clear()
         renderer.domElement.removeEventListener('pointerdown', onFirstPointerDown)
         controls.dispose()
         spriteGeometry.dispose()
         spriteTexture.dispose()
+        trailStartOuterGeometry.dispose()
+        trailStartCoreGeometry.dispose()
         centerMarkerGeometry.dispose()
         centerMarkerMaterial.dispose()
         centerMarkerCoreGeometry.dispose()
@@ -629,6 +787,7 @@ export function useThreeRenderer(options: ThreeRendererOptions) {
     baseLineWidth,
     lineWidthBoost,
     trailSmoothing,
+    trailDetailMode,
     dashedLines,
     dashLength,
     dashGap,

@@ -166,7 +166,7 @@ export function LayerControls({
         ) : null}
       </section> : null}
 
-      {showCoreSections ? <section className="panel-section">
+      {showCoreSections && uiMode === 'advanced' ? <section className="panel-section">
         <h3 className="panel-section-title">Generator</h3>
         <p className="section-help">Choose the path generator for this layer. Lissajous mode uses dedicated frequency, phase, and amplitude controls.</p>
         <div className="field-grid">

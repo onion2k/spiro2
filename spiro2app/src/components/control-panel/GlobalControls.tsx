@@ -1,6 +1,6 @@
 import type { NoiseMode, StrokeWidthMode } from '@/spiro/types'
 import type { GlobalSettings } from '@/spiro/renderers/defaults'
-import type { LineMaterialPresetId, ThreeCameraMode, ThreeLineRenderMode } from '@/spiro/renderers/types'
+import type { LineMaterialPresetId, ThreeCameraMode, ThreeLineRenderMode, TrailDetailMode } from '@/spiro/renderers/types'
 import { MATERIAL_PRESETS } from '@/spiro/renderers/materialPresets'
 import { STYLE_PRESETS } from '@/spiro/stylePresets'
 import { Button } from '@/components/ui/button'
@@ -47,6 +47,7 @@ export function GlobalControls({
     baseLineWidth,
     lineWidthBoost,
     trailSmoothing,
+    trailDetailMode,
     dashedLines,
     dashLength,
     dashGap,
@@ -404,6 +405,18 @@ export function GlobalControls({
         <h3 className="panel-section-title">Performance</h3>
         <p className="section-help">Balance smoothness and frame rate by constraining trail size.</p>
         <div className="field-grid">
+          <div className="field">
+            <label htmlFor="trail-detail-mode">Particle Trail Detail</label>
+            <Select value={trailDetailMode} onValueChange={(value) => updateSetting('trailDetailMode', value as TrailDetailMode)}>
+              <SelectTrigger id="trail-detail-mode" title="Detailed mode samples denser trails for smoother particles and lines." className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="balanced">Balanced</SelectItem>
+                <SelectItem value="detailed">Detailed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="field">
             <label htmlFor="max-trail">Max Trail Points ({maxTrailPointsPerLayer})</label>
             <Slider
